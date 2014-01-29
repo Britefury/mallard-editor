@@ -22,7 +22,7 @@ class Page (node.Node):
 		def _title():
 			titles = self.elem.children_tagged('title')
 			if len(titles) == 1:
-				return titles[0].text_content
+				return titles[0].text_contents
 			elif len(titles) == 0:
 				return None
 			else:
@@ -33,9 +33,9 @@ class Page (node.Node):
 			def onAccept(self_, control, text):
 				titles = self.elem.children_tagged('title')
 				if len(titles) == 0:
-					self.elem.content.insert(xmlmodel.XmlElem('title').append(text))
+					self.elem.contents.insert(xmlmodel.XmlElem('title').append(text))
 				else:
-					titles[0].content[:] = text
+					titles[0].contents[:] = text
 
 		self._title_save = _TitleSave()
 		self.title = LiveFunction(_title)

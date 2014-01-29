@@ -121,11 +121,15 @@ def _is_tagged(x, tag):
 	return isinstance(x, XmlElem)  and  x.tag == tag
 
 
+class XmlElemHasNonTextContentError (Exception):
+	pass
+
+
 class XmlElem (object):
 	def __init__(self, tag, **attrs):
 		self.__tag = tag
 		self.__attrs = ElemAttrs(attrs)
-		self.__content = LiveList()
+		self.__contents = LiveList()
 
 
 
@@ -138,32 +142,32 @@ class XmlElem (object):
 		return self.__attrs
 
 	@property
-	def content(self):
-		return self.__content
+	def contents(self):
+		return self.__contents
 
 
 	@property
-	def text_content(self):
-		for x in self.__content:
+	def text_contents(self):
+		for x in self.__contents:
 			if not isinstance(x, basestring):
-				raise TypeError, 'XML node tagged {0} has non-text content'.format(self.__tag)
-		return ''.join(self.__content[:])
+				raise XmlElemHasNonTextContentError, 'XML node tagged {0} has non-text content'.format(self.__tag)
+		return ''.join(self.__contents[:])
 
 
 	def children_tagged(self, tag):
-		return [x   for x in self.__content   if _is_tagged(x, tag)]
+		return [x   for x in self.__contents   if _is_tagged(x, tag)]
 
 
 	def __iter__(self):
-		return iter(self.__content)
+		return iter(self.__contents)
 
 
 	def append(self, x):
-		self.__content.append(x)
+		self.__contents.append(x)
 		return self
 
 	def extend(self, xs):
-		self.__content.extend(xs)
+		self.__contents.extend(xs)
 		return self
 
 
@@ -176,28 +180,28 @@ class XmlElem (object):
 		br = LineBreak()
 
 		complex = False
-		for x in self.__content:
+		for x in self.__contents:
 			if isinstance(x, XmlElem):
 				complex = True
 				break
 
 		if complex:
 			end = Row([open_angle, slash, tag, close_angle])
-			content = Column([NormalText([x])   for x in self.__content])
+			content = Column([NormalText([x])   for x in self.__contents])
 			if len(self.__attrs) == 0:
 				start = Row([open_angle, tag, close_angle])
 			else:
 				start = Span([open_angle, tag, space, br, self.__attrs, close_angle])
 			return Column([start, content.padX(20.0, 0.0), end])
 		else:
-			if len(self.__content) == 0:
+			if len(self.__contents) == 0:
 				if len(self.__attrs) == 0:
 					return Row([open_angle, tag, slash, close_angle])
 				else:
 					return Paragraph([open_angle, tag, space, br, self.__attrs, slash, close_angle])
 			else:
 				end = Row([open_angle, slash, tag, close_angle])
-				content = [NormalText([x])   for x in self.__content]
+				content = [NormalText([x])   for x in self.__contents]
 				if len(self.__attrs) == 0:
 					start = Row([open_angle, tag, close_angle])
 				else:
@@ -208,7 +212,7 @@ class XmlElem (object):
 
 	def _write_sax(self, sax_handler):
 		sax_handler.startElement(self.__tag, self.__attrs.attrs_dict())
-		for x in self.__content:
+		for x in self.__contents:
 			if isinstance(x, basestring):
 				sax_handler.characters(x)
 			elif isinstance(x, XmlElem):
@@ -284,20 +288,40 @@ import StringIO
 class Test_xmltree (unittest.TestCase):
 	__xml_header = '<?xml version="1.0" encoding="iso-8859-1"?>\n'
 
-	__source = __xml_header + '<xml>abc<a x="1"></a>pqr<b x="2"></b>xyz</xml>'
+	__source = __xml_header + '<xml>abc<a x="1">gg</a>pqr<b x="2"></b>xyz</xml>'
+
+
+	def test_accessors(self):
+		xml = XmlElem.from_string(self.__source)
+		self.assertEqual(xml.tag, 'xml')
+		self.assertEqual(len(xml.attrs), 0)
+		self.assertEqual(len(xml.contents), 5)
+		self.assertEqual(xml.contents, [x   for x in xml])
+
+
+	def test_text_contents(self):
+		xml = XmlElem.from_string(self.__source)
+		self.assertRaises(XmlElemHasNonTextContentError, lambda: xml.text_contents)
+		self.assertEqual(xml.contents[1].text_contents, 'gg')
+
+
+	def test_children_tagged(self):
+		xml = XmlElem.from_string(self.__source)
+		self.assertEqual(xml.children_tagged('a')[0].tag, 'a')
+
 
 	def test_read(self):
-		tree = XmlElem.from_string( self.__source )
+		tree = XmlElem.from_string(self.__source)
 		out = tree.write_as_string()
-		self.assertEqual( self.__source, out )
+		self.assertEqual(self.__source, out)
 
 
 	def test_write(self):
-		a = XmlElem( 'a', x='1' )
-		b = XmlElem( 'b', x='2' )
-		xml = XmlElem( 'xml' ).append('abc').append(a).append('pqr').append(b).append('xyz')
+		a = XmlElem('a', x='1').append('gg')
+		b = XmlElem('b', x='2')
+		xml = XmlElem('xml').append('abc').append(a).append('pqr').append(b).append('xyz')
 		out = xml.write_as_string()
-		self.assertEqual( self.__source, out )
+		self.assertEqual(self.__source, out)
 
 
 

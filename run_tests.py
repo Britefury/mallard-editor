@@ -1,11 +1,13 @@
 import unittest
 import sys
 
-from datamodel import xmlmodel
+import datamodel.xmlmodel
+import datamodel.xmlquery
 
 
 normal_tests = [
-	xmlmodel
+	datamodel.xmlmodel,
+	datamodel.xmlquery,
 ]
 
 
