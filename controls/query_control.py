@@ -1,0 +1,8 @@
+
+
+
+class QueryControl (object):
+	pass
+
+
+

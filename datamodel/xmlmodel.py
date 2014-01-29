@@ -25,6 +25,19 @@ class ElemAttrs (object):
 		self.__incr = IncrementalValueMonitor()
 
 
+	def __eq__(self, other):
+		if isinstance(other, ElemAttrs):
+			return self.__attrs == other.__attrs
+		else:
+			return NotImplemented
+
+	def __ne__(self, other):
+		if isinstance(other, ElemAttrs):
+			return self.__attrs != other.__attrs
+		else:
+			return NotImplemented
+
+
 	def attrs_dict(self):
 		x = {}
 		x.update(self.__attrs)
@@ -124,12 +137,66 @@ def _is_tagged(x, tag):
 class XmlElemHasNonTextContentError (Exception):
 	pass
 
+class XmlElemMultipleChildrenMatchSelectorError (Exception):
+	pass
+
+class XmlElemenNoChildrenMatchesSelector (Exception):
+	pass
+
+
+
+def _test(elem, selector, text, attrs):
+	if text:
+		return isinstance(elem, basestring)
+	else:
+		if not isinstance(elem, XmlElem):
+			return False
+		if selector is not None:
+			if isinstance(selector, basestring):
+				if elem.tag != selector:
+					return False
+			elif callable(selector):
+				if not selector(elem):
+					return False
+			else:
+				raise TypeError, 'Selector must be a string or a callable'
+
+		a = elem.attrs.attrs_dict()
+		for k, v in attrs.items():
+			try:
+				p = a[k]
+			except KeyError:
+				return False
+			else:
+				if p != v:
+					return False
+
+		return True
+
+
+
+
+
 
 class XmlElem (object):
 	def __init__(self, tag, **attrs):
 		self.__tag = tag
 		self.__attrs = ElemAttrs(attrs)
 		self.__contents = LiveList()
+
+
+
+	def __eq__(self, other):
+		if isinstance(other, XmlElem):
+			return self.__contents == other.__contents  and  self.__attrs == other.__attrs
+		else:
+			return NotImplemented
+
+	def __ne__(self, other):
+		if isinstance(other, XmlElem):
+			return self.__contents != other.__contents  or  self.__attrs != other.__attrs
+		else:
+			return NotImplemented
 
 
 
@@ -146,16 +213,20 @@ class XmlElem (object):
 		return self.__contents
 
 
+	def is_textual(self):
+		for x in self.__contents:
+			if not isinstance(x, basestring):
+				return False
+		return True
+
+
+
 	@property
-	def text_contents(self):
+	def as_text(self):
 		for x in self.__contents:
 			if not isinstance(x, basestring):
 				raise XmlElemHasNonTextContentError, 'XML node tagged {0} has non-text content'.format(self.__tag)
 		return ''.join(self.__contents[:])
-
-
-	def children_tagged(self, tag):
-		return [x   for x in self.__contents   if _is_tagged(x, tag)]
 
 
 	def __iter__(self):
@@ -169,6 +240,26 @@ class XmlElem (object):
 	def extend(self, xs):
 		self.__contents.extend(xs)
 		return self
+
+
+	def children(self, __selector=None, __text=False, **attrs):
+		children = []
+		for x in self.__contents:
+			if _test(x, __selector, __text, attrs):
+				children.append(x)
+		return children
+
+
+	def child(self, __selector=None, __text=False, **attrs):
+		child = None
+		for x in self.__contents:
+			if _test(x, __selector, __text, attrs):
+				if child is not None:
+					raise XmlElemMultipleChildrenMatchSelectorError
+				child = x
+		if child is None:
+			raise XmlElemenNoChildrenMatchesSelector
+		return child
 
 
 	def __present__(self, fragment, inh):
@@ -290,6 +381,8 @@ class Test_xmltree (unittest.TestCase):
 
 	__source = __xml_header + '<xml>abc<a x="1">gg</a>pqr<b x="2"></b>xyz</xml>'
 
+	__page = __xml_header + '<page><title>A page</title><info x="1"><first>First info<info type="sub">Sub info</info></first><second y="2">Second info</second></info></page>'
+
 
 	def test_accessors(self):
 		xml = XmlElem.from_string(self.__source)
@@ -299,15 +392,24 @@ class Test_xmltree (unittest.TestCase):
 		self.assertEqual(xml.contents, [x   for x in xml])
 
 
-	def test_text_contents(self):
+	def test_as_text(self):
 		xml = XmlElem.from_string(self.__source)
-		self.assertRaises(XmlElemHasNonTextContentError, lambda: xml.text_contents)
-		self.assertEqual(xml.contents[1].text_contents, 'gg')
+		self.assertRaises(XmlElemHasNonTextContentError, lambda: xml.as_text)
+		self.assertEqual(xml.contents[1].as_text, 'gg')
 
 
-	def test_children_tagged(self):
-		xml = XmlElem.from_string(self.__source)
-		self.assertEqual(xml.children_tagged('a')[0].tag, 'a')
+	def test_children(self):
+		xml = XmlElem.from_string(self.__page)
+		# By tag selector
+		self.assertEqual(xml.children('title')[0].tag, 'title')
+		self.assertEqual(xml.children('info')[0].tag, 'info')
+		# By callable selector
+		self.assertEqual(xml.children(lambda e: e.tag == 'title')[0].tag, 'title')
+		# By attribute
+		self.assertEqual(xml.children(x='1')[0].tag, 'info')
+		self.assertEqual(len(xml.children('title', x='1')), 0)
+		# By tag and attribute
+		self.assertEqual(xml.children('info', x='1')[0].tag, 'info')
 
 
 	def test_read(self):

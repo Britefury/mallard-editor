@@ -1,6 +1,6 @@
 import weakref
 
-from datamodel import xmlmodel
+from datamodel import xmlmodel, fields
 
 
 
@@ -27,11 +27,20 @@ class Mapping (object):
 class NodeClass (type):
 	def __init__(cls, name, bases, dict):
 		super(NodeClass, cls).__init__(name, bases, dict)
+		__tag_mapping__ = {}
 		try:
-			mapping = cls.__tag_mapping__
+			__tag_mapping__.update(cls.__tag_mapping__)
 		except AttributeError:
-			mapping = {}
-			cls.__tag_mapping__ = mapping
+			pass
+		cls.__tag_mapping__ = __tag_mapping__
+
+		__fields__ = {}
+		try:
+			__fields__.update(cls.__fields__)
+		except AttributeError:
+			pass
+		cls.__fields__ = __fields__
+
 
 		for name, value in dict.items():
 			try:
@@ -39,13 +48,22 @@ class NodeClass (type):
 			except AttributeError:
 				pass
 			else:
-				mapping[tag] = value
+				__tag_mapping__[tag] = value
+
+			if isinstance(value, fields.Field):
+				value._class_init(cls, name)
+				__fields__[name] = value
+
+
+
 
 
 class Node (object):
 	__metaclass__ = NodeClass
 
 	def __init__(self, mapping, elem):
+		for name, field in self.__fields__.items():
+			field._instance_init(self)
 		self.__mapping = mapping
 		self.elem = elem
 

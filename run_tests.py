@@ -2,12 +2,10 @@ import unittest
 import sys
 
 import datamodel.xmlmodel
-import datamodel.xmlquery
 
 
 normal_tests = [
 	datamodel.xmlmodel,
-	datamodel.xmlquery,
 ]
 
 
