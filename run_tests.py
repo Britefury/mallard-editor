@@ -2,10 +2,12 @@ import unittest
 import sys
 
 import datamodel.xmlmodel
+import datamodel.projected_list
 
 
 normal_tests = [
 	datamodel.xmlmodel,
+	datamodel.projected_list,
 ]
 
 
