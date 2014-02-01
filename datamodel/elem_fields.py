@@ -7,21 +7,10 @@ from BritefuryJ.Graphics import SolidBorder
 
 from . import xmlmodel, fields
 
+from controls import error
 
 
 
-
-# Error sentinel value
-
-class QueryErrorSentinel (object):
-	error_message = 'Generic query error'
-
-	def __present__(self, fragment, inh):
-		return self._sentinel_border.surround(self._sentinel_style(Label(self.error_message)))
-
-
-	_sentinel_border = SolidBorder(1.0, 4.0, 5.0, 5.0, Color(1.0, 0.5, 0.5), Color(1.0, 0.95, 0.95))
-	_sentinel_style = StyleSheet.style(Primitive.foreground(Color(0.3, 0.0, 0.0)))
 
 
 
@@ -30,6 +19,7 @@ class QueryFieldInstance (fields.FieldInstance):
 	@property
 	def query(self):
 		return self._field._query_for_instance(self, self._instance)
+
 
 
 
@@ -53,15 +43,6 @@ class QueryField (fields.Field):
 
 
 
-	def element_text_content(self):
-		return TextContentQuery(self)
-
-
-	def sub_query(self, method):
-		return QueryField(self._methods + [method])
-
-
-
 
 
 class DerivedQueryFieldInstance (fields.FieldInstance):
@@ -78,87 +59,54 @@ class DerivedQueryField (fields.Field):
 
 
 
-# TextContentQuery error sentinel values
-
-class TextContentQueryElementNotFound (QueryErrorSentinel):
-	error_message = 'Text content: target element not found'
-
-class TextContentQueryMultipleElements (QueryErrorSentinel):
-	error_message = 'Text content: multiple elements found'
-
-class TextContentQueryNonTextContent (QueryErrorSentinel):
-	error_message = 'Text content: non-text content'
-
-TextContentQueryElementNotFound.instance = TextContentQueryElementNotFound()
-TextContentQueryMultipleElements.instance = TextContentQueryMultipleElements()
-TextContentQueryNonTextContent.instance = TextContentQueryNonTextContent()
+class ElemQueryInstance (QueryFieldInstance):
+	pass
 
 
+class ElemQuery (QueryField):
+	__field_instance_class__ = ElemQueryInstance
 
-class TextContentQueryInstance (DerivedQueryFieldInstance):
-	def __init__(self, field, instance):
-		super(TextContentQueryInstance, self).__init__(field, instance)
+	def child(self, __selector, **attrs):
+		return ElemQuery(self._methods + [lambda instance, elem: elem.child(__selector=__selector, **attrs)])
 
+	def children(self, __selector, **attrs):
+		return MultipleElemQuery(self._methods + [lambda instance, elem: elem.children_projected(__selector=__selector, **attrs)])
 
-		@LiveFunction
-		def live():
-			e = self.__get_element()
-			if isinstance(e, QueryErrorSentinel):
-				return e
-			try:
-				return e.as_text
-			except xmlmodel.XmlElemHasNonTextContentError:
-				return TextContentQueryNonTextContent.instance
-
-		self.__live = live
+	def as_object(self, **mapping):
+		return AsObjectQuery(self._methods + [lambda instance, elem: instance._map_elem(elem, mapping)])
 
 
 
-	def __get_element(self):
-		try:
-			q = self._field._underlying._query_for_instance(self, self._instance)
-		except xmlmodel.XmlElemenNoChildrenMatchesSelector:
-			return TextContentQueryElementNotFound.instance
-		except xmlmodel.XmlElemMultipleChildrenMatchSelectorError:
-			return TextContentQueryMultipleElements.instance
-
-		if not isinstance(q, xmlmodel.XmlElem):
-			l = len(q)
-			if l == 1:
-				q = q[0]
-			elif l == 0:
-				return TextContentQueryElementNotFound.instance
-			else:
-				return TextContentQueryMultipleElements.instance
-
-		return q
+class MultipleElemQueryInstance (QueryFieldInstance):
+	pass
 
 
+class MultipleElemQuery (QueryField):
+	__field_instance_class__ = MultipleElemQueryInstance
 
-	@property
-	def value(self):
-		return self.__live.getValue()
+	def children(self, __selector, **attrs):
+		return MultipleElemQuery(self._methods + [lambda instance, projected_list: projected_list.filter(lambda x: xmlmodel._test(x, __selector, False, attrs))])
 
-	@property
-	def live(self):
-		return self.__live
-
-	def set(self, value):
-		e = self.__get_element()
-		if isinstance(e, QueryErrorSentinel):
-			return e
-		else:
-			del e.contents[:]
-			e.append(value)
-			return None
+	def as_objects(self, **mapping):
+		return AsObjectsQuery(self._methods + [lambda instance, projected_list: projected_list.map(lambda x: instance._map_elem(x, mapping))])
 
 
 
 
-class TextContentQuery (DerivedQueryField):
-	__field_instance_class__ = TextContentQueryInstance
+class AsObjectQueryInstance (QueryFieldInstance):
+	pass
+
+class AsObjectQuery (QueryField):
+	__field_instance_class__ = AsObjectQueryInstance
 
 
 
+class AsObjectsQueryInstance (QueryFieldInstance):
+	pass
+
+class AsObjectsQuery (QueryField):
+	__field_instance_class__ = AsObjectsQueryInstance
 
 
+
+root_query = ElemQuery([])

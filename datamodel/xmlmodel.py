@@ -6,9 +6,9 @@ import xml.sax
 import xml.sax.saxutils
 
 from BritefuryJ.Incremental import IncrementalValueMonitor
-from BritefuryJ.Live import LiveValue
+from BritefuryJ.Live import LiveValue, LiveFunction
 
-from Britefury.Util.LiveList import LiveList
+from . import projected_list
 
 
 from BritefuryJ.Pres.Primitive import Primitive, Label, Row, Column, Paragraph, LineBreak, Span
@@ -182,7 +182,7 @@ class XmlElem (object):
 	def __init__(self, tag, **attrs):
 		self.__tag = tag
 		self.__attrs = ElemAttrs(attrs)
-		self.__contents = LiveList()
+		self.__contents = projected_list.LiveProjectedList()
 
 
 
@@ -229,6 +229,14 @@ class XmlElem (object):
 		return ''.join(self.__contents[:])
 
 
+	@property
+	def as_text_live(self):
+		@LiveFunction
+		def as_t():
+			return self.as_text
+		return as_t
+
+
 	def __iter__(self):
 		return iter(self.__contents)
 
@@ -248,6 +256,9 @@ class XmlElem (object):
 			if _test(x, __selector, __text, attrs):
 				children.append(x)
 		return children
+
+	def children_projected(self, __selector=None, __text=False, **attrs):
+		return self.__contents.filter(lambda x: _test(x, __selector, __text, attrs))
 
 
 	def child(self, __selector=None, __text=False, **attrs):

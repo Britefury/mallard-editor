@@ -8,23 +8,18 @@ from BritefuryJ.Live import LiveFunction
 from datamodel import xmlmodel, node, elem_fields
 from controls import text_entry
 
-from . import title
 
 
 
 
 
-
-class Page (node.Node):
-	title_elem = elem_fields.root_query.child('title').as_object(title=title.Title)
+class Title (node.Node):
+	title_elem = elem_fields.root_query
 
 
 	def __present__(self, fragment, inh):
-		return Column([self.title_elem.query])
+		title_heading = SectionHeading1('Title: ')
 
+		title_editor = text_entry.text_entry_query_text(self.title_elem)
 
-
-	@staticmethod
-	def for_elem(elem):
-		mapping = node.Mapping()
-		return Page(mapping, elem)
+		return Row([title_heading, title_editor])

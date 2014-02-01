@@ -64,18 +64,19 @@ class Node (object):
 	def __init__(self, mapping, elem):
 		for name, field in self.__fields__.items():
 			field._instance_init(self)
-		self.__mapping = mapping
+		self._mapping = mapping
 		self.elem = elem
 
 
-	def child(self, child_elem):
-		if isinstance(child_elem, basestring):
-			return child_elem
-		elif isinstance(child_elem, xmlmodel.XmlElem):
-			child_node = self.__mapping.get(child_elem)
-			if child_node is None:
-				cls = self.__tag_mapping__[child_elem.tag]
-				child_node = cls(self.__mapping, child_elem)
-			return child_node
+
+	def _map_elem(self, elem, tag_mapping):
+		if isinstance(elem, basestring):
+			return elem
+		elif isinstance(elem, xmlmodel.XmlElem):
+			node = self._mapping.get(elem)
+			if node is None:
+				cls = tag_mapping[elem.tag]
+				node = cls(self._mapping, elem)
+			return node
 		else:
 			raise TypeError

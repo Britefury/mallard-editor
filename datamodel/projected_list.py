@@ -15,7 +15,7 @@ class _ProjectedList (object):
 
 
 class LiveProjectedList (LiveList, _ProjectedList):
-	def __init__(self, xs):
+	def __init__(self, xs=None):
 		LiveList.__init__(self, xs)
 		_ProjectedList.__init__(self)
 
