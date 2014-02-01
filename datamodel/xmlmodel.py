@@ -149,11 +149,12 @@ def _test(elem, selector, text, attrs):
 	if text:
 		return isinstance(elem, basestring)
 	else:
-		if not isinstance(elem, XmlElem):
-			return False
 		if selector is not None:
 			if isinstance(selector, basestring):
-				if elem.tag != selector:
+				if not isinstance(elem, XmlElem)  or  elem.tag != selector:
+					return False
+			elif isinstance(selector, list)  or  isinstance(selector, tuple):
+				if not isinstance(elem, XmlElem)  or  elem.tag not in selector:
 					return False
 			elif callable(selector):
 				if not selector(elem):
@@ -161,15 +162,19 @@ def _test(elem, selector, text, attrs):
 			else:
 				raise TypeError, 'Selector must be a string or a callable'
 
-		a = elem.attrs.attrs_dict()
-		for k, v in attrs.items():
-			try:
-				p = a[k]
-			except KeyError:
+		if len(attrs) > 0:
+			if not isinstance(elem, XmlElem):
 				return False
-			else:
-				if p != v:
+
+			a = elem.attrs.attrs_dict()
+			for k, v in attrs.items():
+				try:
+					p = a[k]
+				except KeyError:
 					return False
+				else:
+					if p != v:
+						return False
 
 		return True
 
@@ -411,6 +416,8 @@ class Test_xmltree (unittest.TestCase):
 
 	def test_children(self):
 		xml = XmlElem.from_string(self.__page)
+		# All
+		self.assertEqual(len(xml.children()), 2)
 		# By tag selector
 		self.assertEqual(xml.children('title')[0].tag, 'title')
 		self.assertEqual(xml.children('info')[0].tag, 'info')
@@ -421,6 +428,9 @@ class Test_xmltree (unittest.TestCase):
 		self.assertEqual(len(xml.children('title', x='1')), 0)
 		# By tag and attribute
 		self.assertEqual(xml.children('info', x='1')[0].tag, 'info')
+		# Text
+		self.assertEqual(xml.child('title').children(), ['A page'])
+
 
 
 	def test_read(self):

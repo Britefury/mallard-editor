@@ -20,6 +20,6 @@ class Title (node.Node):
 	def __present__(self, fragment, inh):
 		title_heading = SectionHeading1('Title: ')
 
-		title_editor = text_entry.text_entry_query_text(self.title_elem)
+		title_editor = text_entry.text_entry_query_text(lambda: self.title_elem)
 
 		return Row([title_heading, title_editor])

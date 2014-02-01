@@ -26,7 +26,10 @@ from BritefuryJ.Incremental import IncrementalValueMonitor
 
 from Britefury.Util.Abstract import abstractmethod
 
-from BritefuryJ.Editor.RichText import *
+from BritefuryJ.Editor.RichText import RichTextController
+
+
+from datamodel import node, elem_fields, xmlmodel
 
 
 
@@ -47,8 +50,8 @@ class MallardRichTextController (RichTextController):
 		return ParaEmbed(value)
 	
 	def buildParagraph(self, contents, styleAttrs):
-		return Para(contents, dict(styleAttrs))
-	
+		return Para.new_p(None, contents, dict(styleAttrs))
+
 	def buildSpan(self, contents, styleAttrs):
 		return Style(contents, dict(styleAttrs))
 	
@@ -69,36 +72,53 @@ class MallardRichTextController (RichTextController):
 _editor = MallardRichTextController('Mallard rich text editor')
 
 
-
-class MRTElem (object):
-	pass
+class MRTElem (node.Node):
+	@staticmethod
+	def coerce_contents(contents):
+		if contents is None:
+			return []
+		else:
+			return contents
 
 
 class MRTAbstractText (MRTElem):
-	def __init__(self, contents):
-		self._contents = list(contents)
+	contents_query = elem_fields.root_query.children().as_objects()
+	ch = elem_fields.root_query.children()
+	root = elem_fields.root_query
+
+
+	def __init__(self, mapping, elem, contents=None):
+		super(MRTAbstractText, self).__init__(mapping, elem)
+		self.contents_query.change_listener = self._on_changed
 		self._editorModel = None
 		self._incr = IncrementalValueMonitor()
-	
-	def setContents(self, contents):
-		self._contents = list(contents)
-		self._editorModel.setModelContents(_editor, contents)
+		if contents is not None:
+			self.setContents(contents)
+
+	def _on_changed(self):
+		self._editorModel.setModelContents(_editor,  self.contents_query)
 		self._incr.onChanged()
-	
+
+
+	def setContents(self, contents):
+		self.contents_query = contents
+
 	def getContents(self):
 		self._incr.onAccess()
-		return self._contents
+		return self.contents_query[:]
 
 
 
 class Para (MRTAbstractText):
-	def __init__(self, contents, attrs={}):
-		super(Para, self).__init__(contents)
-		
-		attrs = dict(attrs)
+	def __init__(self, mapping, elem, contents=None, attrs=None):
+		super(Para, self).__init__(mapping, elem, contents)
+		if attrs is None:
+			attrs = {}
+		else:
+			attrs = dict(attrs)
 		self._style = attrs.get('style', 'normal')
-		
-		self._editorModel = _editor.editorModelParagraph(contents, {'style':self._style})
+
+		self._editorModel = _editor.editorModelParagraph(self.coerce_contents(contents), {'style':self._style})
 	
 	
 	def setStyle(self, style):
@@ -110,19 +130,22 @@ class Para (MRTAbstractText):
 	
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
+		xs = list(self.contents_query)
 		combinatorClass = self._styleMap[self._style]
-		x = combinatorClass(self._contents)
+		x = combinatorClass(xs)
 		x = _editor.editableParagraph(self, x)
 		return x
-	
-	def __repr__(self):
-		return ''.join([str(x)   for x in self._contents])
+
+
+	@staticmethod
+	def new_p(mapping, contents, style_attrs=None):
+		return Para(mapping, xmlmodel.XmlElem('p'), contents, style_attrs)
 
 
 
 class _TempBlankPara (MRTElem):
-	def __init__(self, block):
-		super(_TempBlankPara, self).__init__([])
+	def __init__(self, mapping, block):
+		super(_TempBlankPara, self).__init__(mapping, None)
 		
 		self._block = block
 		self._style = 'normal'
@@ -135,12 +158,12 @@ class _TempBlankPara (MRTElem):
 			return
 		elif len(contents) == 1 and contents[0] == '':
 			return
-		p = Para(contents, {'style':self._style})
+		p = Para.new_p(self._mapping, contents)
 		self._block.append(p)
 	
 	def getContents(self):
 		self._incr.onAccess()
-		return self._contents
+		return []
 	
 	def setStyle(self, style):
 		self._style = style
@@ -160,10 +183,12 @@ class _TempBlankPara (MRTElem):
 
 
 class Style (MRTAbstractText):
-	def __init__(self, contents, styleAttrs):
-		super(Style, self).__init__(contents)
-		self._editorModel = _editor.editorModelSpan(contents, styleAttrs)
-		self.setStyleAttrs(styleAttrs)
+	def __init__(self, mapping, elem, contents=None, style_attrs=None):
+		super(Style, self).__init__(mapping, elem, contents)
+		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), style_attrs)
+		if style_attrs is None:
+			style_attrs = {}
+		self.setStyleAttrs(style_attrs)
 	
 	def setStyleAttrs(self, styleAttrs):
 		self._styleAttrs = styleAttrs
@@ -177,7 +202,7 @@ class Style (MRTAbstractText):
 	
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
-		x = self._styleSheet.applyTo(RichSpan(self._contents))
+		x = self._styleSheet.applyTo(RichSpan(list(self.contents_query)))
 		x = _editor.editableSpan(self, x)
 		return x
 	
@@ -196,10 +221,6 @@ class Style (MRTAbstractText):
 	
 	
 	
-	
-	def __repr__(self):
-		return '<' + ''.join([str(x)   for x in self._contents]) + '::' + str(self._styleAttrs) + '>'
-
 
 class _Embed (MRTElem):
 	pass
@@ -249,53 +270,55 @@ def _paraEmbedContextMenuFactory(element, menu):
 
 
 class Block (MRTElem):
-	def __init__(self, contents):
-		self._contents = contents
+	contents_query = elem_fields.root_query.children(['p']).as_objects(p=Para)
+
+	def __init__(self, mapping, elem, contents=None):
+		super(Block, self).__init__(mapping, elem)
+		self.contents_query.change_listener = self._on_changed
+		self._editorModel = _editor.editorModelBlock([])
 		self._incr = IncrementalValueMonitor()
-		self._editorModel = _editor.editorModelBlock(contents)
-	
+		if contents is not None:
+			self.setContents(contents)
+
+
 	def _filterContents(self, xs):
 		return [x   for x in xs   if not isinstance(x, _TempBlankPara)]
 	
 	
-	def setContents(self, contents):
-		self._contents = self._filterContents(list(contents))
-		self._editorModel.setModelContents(_editor, contents)
+	def _on_changed(self):
+		self._editorModel.setModelContents(_editor,  self.contents_query)
 		self._incr.onChanged()
-	
+
+
+	def setContents(self, contents):
+		self.contents_query = self._filterContents(list(contents))
+
 	
 	def append(self, para):
-		self._contents.append(para)
-		self._contents = self._filterContents(self._contents)
-		self._editorModel.setModelContents(_editor, self._contents)
-		self._incr.onChanged()
-	
+		self.contents_query.append(para)
+
 	def insertAfter(self, para, p):
 		index = -1
 		for (i, x) in enumerate(self._contents):
 			if p is x:
 				index = i
-		self._contents.insert(index + 1, para)
-		self._contents = self._filterContents(self._contents)
-		self._editorModel.setModelContents(_editor, self._contents)
-		self._incr.onChanged()
-	
+		self.contents_query.insert(index + 1, para)
+
 	def removeParagraph(self, para):
 		index = -1
-		for (i, x) in enumerate(self._contents):
+		for (i, x) in enumerate(self.contents_query):
 			if para is x:
 				index = i
 		if index != -1:
-			del self._contents[index]
-			self._editorModel.setModelContents(_editor, self._contents)
-			self._incr.onChanged()
+			del self.contents_query[index]
 		else:
 			raise ValueError, 'could not find para'
 	
 	
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
-		xs = self._contents   if len(self._contents) > 0   else [_TempBlankPara(self)]
+		contents = self.contents_query
+		xs = list(contents)   if len(contents) > 0   else [_TempBlankPara(self._mapping, self)]
 		#xs = self._contents + [_TempBlankPara( self )]
 		x = Body(xs)
 		x = _editor.editableBlock(self, x)
@@ -303,13 +326,15 @@ class Block (MRTElem):
 
 
 class Document (MRTElem):
-	def __init__(self, contents):
-		self._contents = contents
+	block_query = elem_fields.root_query.as_object(Block)
+
+	def __init__(self, mapping, elem):
+		super(Document, self).__init__(mapping, elem)
 		self._editorModel = None
 	
 	
 	def __present__(self, fragment, inheritedState):
-		d = Pres.coerce(self._contents).withContextMenuInteractor(_documentContextMenuFactory)
+		d = Pres.coerce(self.block_query).withContextMenuInteractor(_documentContextMenuFactory)
 		d = d.withNonLocalDropDest(DataFlavor.javaFileListFlavor, _dndHighlight, _onDropImage)
 		d = _editor.region(d)
 		return d
@@ -459,12 +484,12 @@ def bold(*x):
 def para(*x):
 	return Para(x)
 
-
-p1 = para('Hello world, ', italic('this ', bold('is a '), 'test'))
-p2 = para('This is the ', italic('second '), 'line')
-d1 = Document(Block([p1, p2]))
-d2 = Document(Block([]))
-d1
-
 #
-
+# p1 = para('Hello world, ', italic('this ', bold('is a '), 'test'))
+# p2 = para('This is the ', italic('second '), 'line')
+# d1 = Document(Block([p1, p2]))
+# d2 = Document(Block([]))
+# d1
+#
+# #
+#

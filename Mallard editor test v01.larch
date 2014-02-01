@@ -944,7 +944,7 @@ atp591
 (lp592
 NaVascii
 p593
-aV<page>\u000A<title>Example Mallard page</title>\u000A</page>
+aV<page>\u000A<title>Example Mallard page</title>\u000A<p>Paragraph</p>\u000A</page>
 p594
 atp595
 batp596

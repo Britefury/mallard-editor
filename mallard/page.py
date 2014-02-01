@@ -8,7 +8,7 @@ from BritefuryJ.Live import LiveFunction
 from datamodel import xmlmodel, node, elem_fields
 from controls import text_entry
 
-from . import title
+from . import title, richtext
 
 
 
@@ -17,10 +17,11 @@ from . import title
 
 class Page (node.Node):
 	title_elem = elem_fields.root_query.child('title').as_object(title=title.Title)
+	text = elem_fields.root_query.as_object(richtext.Document)
 
 
 	def __present__(self, fragment, inh):
-		return Column([self.title_elem.query])
+		return Column([self.title_elem, self.text])
 
 
 

@@ -10,11 +10,25 @@ from . import error
 
 
 
-def text_entry_query_text(query_instance):
+def text_entry_elem(elem):
+	@LiveFunction
+	def control():
+		if not elem.is_textual():
+			return error.error_message('Element has non-textual content')
+		else:
+			class Listener (TextEntry.TextEntryListener):
+				def onAccept(l, control, text):
+					elem.contents[:] = [text]
+			return TextEntry(elem.as_text_live, Listener())
+	return control
+
+
+
+def text_entry_query_text(fn):
 	@LiveFunction
 	def control():
 		try:
-			elem = query_instance.query
+			elem = fn()
 		except xmlmodel.XmlElemenNoChildrenMatchesSelector:
 			return error.error_message('Query did not match any elements')
 		except xmlmodel.XmlElemMultipleChildrenMatchSelectorError:

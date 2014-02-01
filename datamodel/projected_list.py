@@ -19,6 +19,22 @@ class LiveProjectedList (LiveList, _ProjectedList):
 		LiveList.__init__(self, xs)
 		_ProjectedList.__init__(self)
 
+		def _on_change(old_contents, new_contents):
+			if self.__change_listener is not None:
+				self.__change_listener()
+		self.changeListener = _on_change
+
+		self.__change_listener = None
+
+
+	@property
+	def change_listener(self):
+		return self.__change_listener
+
+	@change_listener.setter
+	def change_listener(self, x):
+		self.__change_listener = x
+
 
 
 
@@ -31,8 +47,27 @@ class FilterProjectedList (_ProjectedList):
 
 		def _apply():
 			ii = zip(*[(i, x)   for i, x in enumerate(self.__underlying)   if self.__test(x)])
-			return list(ii[0]), list(ii[1])
+			if len(ii) == 2:
+				return list(ii[0]), list(ii[1])
+			else:
+				return [], []
 		self.__live = LiveFunction(_apply)
+
+		def _live_listener(inc):
+			if self.__change_listener is not None:
+				self.__change_listener()
+
+		self.__change_listener = None
+
+
+	@property
+	def change_listener(self):
+		return self.__change_listener
+
+	@change_listener.setter
+	def change_listener(self, x):
+		self.__change_listener = x
+
 
 	def __test(self, item):
 		for f in self.__filter_fns:
@@ -96,6 +131,11 @@ class FilterProjectedList (_ProjectedList):
 			indices = self._indices[index]
 			for i, a in zip(indices, x):
 				self.__underlying[i] = a
+			if len(x) > len(indices):
+				i = indices[-1] + 1   if len(indices) > 0  else len(self.__underlying)
+				for a in x[len(indices):]:
+					self.__underlying.insert(i, a)
+					i += 1
 
 	def __delitem__(self, index):
 		if isinstance(index, int)  or  isinstance(index, long):
