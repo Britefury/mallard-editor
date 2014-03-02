@@ -23,6 +23,7 @@ from main_app import editor_page
 
 
 
+_page_style = StyleSheet.style(Primitive.selectable(False), Primitive.editable(False))
 _dir_style = StyleSheet.style(Primitive.foreground(Color(0.0, 0.2, 0.4)))
 
 
@@ -33,7 +34,7 @@ class HomePage (object):
 
 		page_files = glob.glob(os.path.join(path, '*.page'))
 
-		self._pages = [editor_page.EditorPage(p)   for p in page_files]
+		self._pages = [editor_page.EditorPage(os.path.join(path, p))   for p in page_files]
 
 
 	def __present__(self , fragment, inherited_state):
@@ -42,7 +43,7 @@ class HomePage (object):
 
 		links = [Hyperlink(p.filename, editor_page.EditorPageSubject(p, fragment.subject))   for p in self._pages]
 
-		return Page([title, path, Column(links)])
+		return _page_style(Page([title, path, Column(links)]))
 
 
 class HomePageSubject (TransientSubject):

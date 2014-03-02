@@ -136,6 +136,9 @@ class FilterProjectedList (_ProjectedList):
 				for a in x[len(indices):]:
 					self.__underlying.insert(i, a)
 					i += 1
+			elif len(x) < len(indices):
+				for i in reversed(indices[len(x):]):
+					del self.__underlying[i]
 
 	def __delitem__(self, index):
 		if isinstance(index, int)  or  isinstance(index, long):
