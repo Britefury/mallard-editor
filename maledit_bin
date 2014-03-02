@@ -1,0 +1,24 @@
+#!/bin/bash
+# Batch file for launching the Mallard Editor using a binary ZIP distribution of Larch
+
+# *** Set the path to your Larch binary here
+LARCHPATH=~/code/larch
+
+# Ensure its set
+if [ ! -d $LARCHPATH ]; then
+	echo Could not find Larch binary at $LARCHPATH. Please edit this shell script and change the line starting with 'LARCHPATH=' to point to the correct path
+	exit -1
+fi
+
+# Capture current path; we need it
+MALLARD_EDITOR_PATH=${PWD}
+
+# Set up JYTHONPATH so it can access the necessary stuff
+export JYTHONPATH=$LARCHPATH/bin:$LARCHPATH/larch:$LARCHPATH/extlibs/jsoup-1.7.3.jar:$LARCHPATH/extlibs/svgSalamander.jar:$MALLARD_EDITOR_PATH
+
+# Invoke larch starting the Mallard Editor app (app)
+cd $LARCHPATH
+./lch -app app
+cd $MALLARD_EDITOR_PATH
+
+

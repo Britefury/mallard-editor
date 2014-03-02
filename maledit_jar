@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# *** Set the path to your Larch JAR here
+LARCH_JAR_PATH=larch-in-a-jar-0.1.33-alpha.jar
+
+# Check its correct
+if [ ! -f $LARCH_JAR_PATH ]; then
+	echo Could not find Larch JAR at $LARCH_JAR_PATH. Please edit this batch file and change the line starting with LARCH_JAR_PATH=
+fi
+
+# Invoke larch starting the Mallard Editor app (app)
+java -jar $LARCH_JAR_PATH -app app
+
+
+
