@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="mallard_editor_jar" name="Build Mallard Editor JAR">
+    <!--this file was created by Eclipse Runnable JAR Export Wizard-->
+    <!--ANT 1.7 is required                                        -->
+    <property name="larch.version" value="UNVERSIONED"/>
+    <property name="maledit.version" value="UNVERSIONED"/>
+    <property name="larch.path" value="larch-in-a-jar-${larch.version}.jar"/>
+
+	<target name="mallard_editor_jar">
+        <jar destfile="./maledit-${maledit.version}.jar">
+            <manifest>
+                <attribute name="Main-Class" value="Main.Main"/>
+                <attribute name="Class-Path" value="."/>
+				<section name="Build-Info">
+					<attribute name="version" value="${maledit.version}" />
+				</section>
+                <attribute name="SplashScreen-Image" value="images/SplashScreen.png"/>
+            </manifest>
+
+            <fileset dir="./controls"></fileset>
+            <fileset dir="./datamodel"></fileset>
+            <fileset dir="./main_app"></fileset>
+            <fileset dir="./mallard"></fileset>
+            <fileset dir="./">
+                <include name="app.py"/>
+            </fileset>
+            <zipfileset excludes="META-INF/*.SF" src="${larch.path}"/>
+        </jar>
+    </target>
+</project>
