@@ -19,6 +19,8 @@ cd %LARCHPATH%
 call lch -app app
 cd %MALLARD_EDITOR_PATH%
 
+goto :eof
 
 :LARCH_NOT_SET
 echo Could not find Larch binary at '%LARCHPATH%'. Please edit this batch file and change the line starting with 'set LARCHPATH=' to point to the correct path
+
