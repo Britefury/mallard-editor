@@ -1,3 +1,9 @@
+"""
+Mallard editor XML data model
+
+
+"""
+
 from java.awt import Color
 
 import StringIO
@@ -17,7 +23,15 @@ from BritefuryJ.StyleSheet import StyleSheet
 
 
 
+
 class ElemAttrs (object):
+	"""
+	XML element attributes
+
+	Implements the Python dictionary interface
+
+	Live object; incremental monitor tracks accesses and changes
+	"""
 	def __init__(self, attrs=None):
 		if attrs is None:
 			attrs = {}
@@ -146,6 +160,15 @@ class XmlElemenNoChildrenMatchesSelector (Exception):
 
 
 def _test(elem, selector, text, attrs):
+	"""
+	Element selector test
+
+	:param elem: the element or text (a str/unicode) to test
+	:param selector: either 1) a tag name, 2) a list or tuple of tag names, or 3) a callable that is called with the element to test passed as a parameter
+	:param text: if True, the test will only pass if elem is text
+	:param attrs: a dictionary mapping attribute names to values; an element will pass the test if its attributes are a superset of those in attrs
+	:return: True of the element or text passes the test, False otherwise
+	"""
 	if text:
 		return isinstance(elem, basestring)
 	else:

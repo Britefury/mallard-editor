@@ -118,7 +118,7 @@ class Para (MRTAbstractText):
 			attrs = dict(attrs)
 		self._style = attrs.get('style', 'normal')
 
-		self._editorModel = _editor.editorModelParagraph(self.coerce_contents(contents), {'style':self._style})
+		self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), {'style':self._style})
 	
 	
 	def setStyle(self, style):
@@ -226,7 +226,8 @@ class _Embed (MRTElem):
 	pass
 
 class InlineEmbed (_Embed):
-	def __init__(self, value):
+	def __init__(self, mapping, elem, value):
+		super(InlineEmbed, self).__init__(mapping, elem)
 		self.value = value
 		self._editorModel = _editor.editorModelInlineEmbed(value)
 	
@@ -236,9 +237,10 @@ class InlineEmbed (_Embed):
 		return x
 
 class ParaEmbed (_Embed):
-	def __init__(self, value):
+	def __init__(self, mapping, elem, value):
+		super(ParaEmbed, self).__init__(mapping, elem)
 		self.value = value
-		self._editorModel = _editor.editorModelParagraphEmbed(value)
+		self._editorModel = _editor.editorModelParagraphEmbed(self, value)
 	
 	def __present__(self, fragment, inheritedState):
 		x = Border(self.value).withContextMenuInteractor(_paraEmbedContextMenuFactory)
@@ -299,7 +301,7 @@ class Block (MRTElem):
 
 	def insertAfter(self, para, p):
 		index = -1
-		for (i, x) in enumerate(self._contents):
+		for (i, x) in enumerate(self.contents_query):
 			if p is x:
 				index = i
 		self.contents_query.insert(index + 1, para)
