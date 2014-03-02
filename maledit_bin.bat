@@ -3,7 +3,7 @@
 REM Batch file for launching the Mallard Editor using a binary ZIP distribution of Larch
 
 REM *** Set the path to your Larch binary here
-set LARCHPATH=\code\larch2
+set LARCHPATH=\code\larch
 
 REM Ensure its set
 if not exist %LARCHPATH% goto LARCH_NOT_SET
