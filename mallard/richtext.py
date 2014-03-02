@@ -82,10 +82,7 @@ class MRTElem (node.Node):
 
 
 class MRTAbstractText (MRTElem):
-	contents_query = elem_fields.root_query.children().as_objects()
-	ch = elem_fields.root_query.children()
-	root = elem_fields.root_query
-
+	contents_query = None		# Abstract
 
 	def __init__(self, mapping, elem, contents=None):
 		super(MRTAbstractText, self).__init__(mapping, elem)
@@ -109,7 +106,52 @@ class MRTAbstractText (MRTElem):
 
 
 
+class Style (MRTAbstractText):
+	contents_query = elem_fields.root_query.children().as_objects()
+
+	def __init__(self, mapping, elem, contents=None, style_attrs=None):
+		super(Style, self).__init__(mapping, elem, contents)
+		if style_attrs is None:
+			style_attrs = {}
+		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), style_attrs)
+		self.setStyleAttrs(style_attrs)
+
+	def setStyleAttrs(self, styleAttrs):
+		self._styleAttrs = styleAttrs
+		self._styleSheet = self._mapStyles(styleAttrs)
+		self._editorModel.setStyleAttrs(styleAttrs)
+		self._incr.onChanged()
+
+	def getStyleAttrs(self):
+		self._incr.onAccess()
+		return self._styleAttrs
+
+	def __present__(self, fragment, inheritedState):
+		self._incr.onAccess()
+		x = self._styleSheet.applyTo(RichSpan(list(self.contents_query)))
+		x = _editor.editableSpan(self, x)
+		return x
+
+
+	_styleMap = {}
+	_styleMap['italic'] = lambda x: (Primitive.fontItalic, bool(x))
+	_styleMap['bold'] = lambda x: (Primitive.fontBold, bool(x))
+
+	def _mapStyles(self, styleAttrs):
+		styleSheet = StyleSheet.instance
+		for k in styleAttrs:
+			f = self._styleMap.get(k)
+			if f is not None:
+				(attrib, value) = f(styleAttrs[k])
+				styleSheet = styleSheet.withAttr(attrib, value)
+		return styleSheet
+
+
+
+
 class Para (MRTAbstractText):
+	contents_query = elem_fields.root_query.children().as_objects(Style)
+
 	def __init__(self, mapping, elem, contents=None, attrs=None):
 		super(Para, self).__init__(mapping, elem, contents)
 		if attrs is None:
@@ -181,46 +223,6 @@ class _TempBlankPara (MRTElem):
 		return '<blank_para'
 
 
-
-class Style (MRTAbstractText):
-	def __init__(self, mapping, elem, contents=None, style_attrs=None):
-		super(Style, self).__init__(mapping, elem, contents)
-		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), style_attrs)
-		if style_attrs is None:
-			style_attrs = {}
-		self.setStyleAttrs(style_attrs)
-	
-	def setStyleAttrs(self, styleAttrs):
-		self._styleAttrs = styleAttrs
-		self._styleSheet = self._mapStyles(styleAttrs)
-		self._editorModel.setStyleAttrs(styleAttrs)
-		self._incr.onChanged()
-	
-	def getStyleAttrs(self):
-		self._incr.onAccess()
-		return self._styleAttrs
-	
-	def __present__(self, fragment, inheritedState):
-		self._incr.onAccess()
-		x = self._styleSheet.applyTo(RichSpan(list(self.contents_query)))
-		x = _editor.editableSpan(self, x)
-		return x
-	
-	
-	_styleMap = {}
-	_styleMap['italic'] = lambda x: (Primitive.fontItalic, bool(x))
-	_styleMap['bold'] = lambda x: (Primitive.fontBold, bool(x))
-	
-	def _mapStyles(self, styleAttrs):
-		styleSheet = StyleSheet.instance
-		for k in styleAttrs:
-			f = self._styleMap[k]
-			(attrib, value) = f(styleAttrs[k])
-			styleSheet = styleSheet.withAttr(attrib, value)
-		return styleSheet
-	
-	
-	
 
 class _Embed (MRTElem):
 	pass

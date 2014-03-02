@@ -321,7 +321,7 @@ class XmlElem (object):
 			if len(self.__attrs) == 0:
 				start = Row([open_angle, tag, close_angle])
 			else:
-				start = Span([open_angle, tag, space, br, self.__attrs, close_angle])
+				start = Paragraph([open_angle, tag, space, br, self.__attrs, close_angle])
 			return Column([start, content.padX(20.0, 0.0), end])
 		else:
 			if len(self.__contents) == 0:
