@@ -30,6 +30,7 @@ from BritefuryJ.Editor.RichText import RichTextController
 
 
 from datamodel import node, elem_fields, xmlmodel
+import mallard
 
 
 
@@ -84,8 +85,8 @@ class MRTElem (node.Node):
 class MRTAbstractText (MRTElem):
 	contents_query = None		# Abstract
 
-	def __init__(self, mapping, elem, contents=None):
-		super(MRTAbstractText, self).__init__(mapping, elem)
+	def __init__(self, projection_table, elem, contents=None):
+		super(MRTAbstractText, self).__init__(projection_table, elem)
 		self.contents_query.change_listener = self._on_changed
 		self._editorModel = None
 		self._incr = IncrementalValueMonitor()
@@ -107,10 +108,10 @@ class MRTAbstractText (MRTElem):
 
 
 class Style (MRTAbstractText):
-	contents_query = elem_fields.root_query.children().as_objects()
+	contents_query = elem_fields.root_query.children().project_to_objects()
 
-	def __init__(self, mapping, elem, contents=None, style_attrs=None):
-		super(Style, self).__init__(mapping, elem, contents)
+	def __init__(self, projection_table, elem, contents=None, style_attrs=None):
+		super(Style, self).__init__(projection_table, elem, contents)
 		if style_attrs is None:
 			style_attrs = {}
 		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), style_attrs)
@@ -150,10 +151,10 @@ class Style (MRTAbstractText):
 
 
 class Para (MRTAbstractText):
-	contents_query = elem_fields.root_query.children().as_objects(Style)
+	contents_query = elem_fields.root_query.children().project_to_objects(Style)
 
-	def __init__(self, mapping, elem, contents=None, attrs=None):
-		super(Para, self).__init__(mapping, elem, contents)
+	def __init__(self, projection_table, elem, contents=None, attrs=None):
+		super(Para, self).__init__(projection_table, elem, contents)
 		if attrs is None:
 			attrs = {}
 		else:
@@ -186,8 +187,8 @@ class Para (MRTAbstractText):
 
 
 class _TempBlankPara (MRTElem):
-	def __init__(self, mapping, block):
-		super(_TempBlankPara, self).__init__(mapping, None)
+	def __init__(self, projection_table, block):
+		super(_TempBlankPara, self).__init__(projection_table, None)
 		
 		self._block = block
 		self._style = 'normal'
@@ -200,7 +201,7 @@ class _TempBlankPara (MRTElem):
 			return
 		elif len(contents) == 1 and contents[0] == '':
 			return
-		p = Para.new_p(self._mapping, contents)
+		p = Para.new_p(self._projection_table, contents)
 		self._block.append(p)
 	
 	def getContents(self):
@@ -225,27 +226,31 @@ class _TempBlankPara (MRTElem):
 
 
 class _Embed (MRTElem):
-	pass
+	def copy(self):
+		pass
 
 class InlineEmbed (_Embed):
-	def __init__(self, mapping, elem, value):
-		super(InlineEmbed, self).__init__(mapping, elem)
-		self.value = value
-		self._editorModel = _editor.editorModelInlineEmbed(value)
+	value = elem_fields.root_query.project_to_object()
+
+	def __init__(self, projection_table, elem):
+		super(InlineEmbed, self).__init__(projection_table, elem)
+		self._editorModel = _editor.editorModelInlineEmbed(self)
 	
 	def __present__(self, fragment, inheritedState):
 		x = Pres.coerce(self.value).withContextMenuInteractor(_inlineEmbedContextMenuFactory)
 		x = _editor.editableInlineEmbed(self, x)
 		return x
 
+
 class ParaEmbed (_Embed):
-	def __init__(self, mapping, elem, value):
-		super(ParaEmbed, self).__init__(mapping, elem)
-		self.value = value
-		self._editorModel = _editor.editorModelParagraphEmbed(self, value)
+	value = elem_fields.root_query.project_to_object(section=lambda: mallard.section.Section, note=lambda: mallard.note.Note)
+
+	def __init__(self, projection_table, elem):
+		super(ParaEmbed, self).__init__(projection_table, elem)
+		self._editorModel = _editor.editorModelParagraphEmbed(self, self)
 	
 	def __present__(self, fragment, inheritedState):
-		x = Border(self.value).withContextMenuInteractor(_paraEmbedContextMenuFactory)
+		x = Pres.coerce(self.value).withContextMenuInteractor(_paraEmbedContextMenuFactory)
 		x = _editor.editableParagraphEmbed(self, x)
 		return x
 
@@ -274,10 +279,10 @@ def _paraEmbedContextMenuFactory(element, menu):
 
 
 class Block (MRTElem):
-	contents_query = elem_fields.root_query.children(['p']).as_objects(p=Para)
+	contents_query = elem_fields.root_query.children(['p', 'section', 'note']).project_to_objects(ParaEmbed, p=Para)
 
-	def __init__(self, mapping, elem, contents=None):
-		super(Block, self).__init__(mapping, elem)
+	def __init__(self, projection_table, elem, contents=None):
+		super(Block, self).__init__(projection_table, elem)
 		self.contents_query.change_listener = self._on_changed
 		self._editorModel = _editor.editorModelBlock([])
 		self._incr = IncrementalValueMonitor()
@@ -322,18 +327,21 @@ class Block (MRTElem):
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
 		contents = self.contents_query
-		xs = list(contents)   if len(contents) > 0   else [_TempBlankPara(self._mapping, self)]
+		xs = list(contents)   if len(contents) > 0   else [_TempBlankPara(self._projection_table, self)]
 		#xs = self._contents + [_TempBlankPara( self )]
 		x = Body(xs)
 		x = _editor.editableBlock(self, x)
 		return x
 
 
-class Document (MRTElem):
-	block_query = elem_fields.root_query.as_object(Block)
 
-	def __init__(self, mapping, elem):
-		super(Document, self).__init__(mapping, elem)
+
+
+class Document (MRTElem):
+	block_query = elem_fields.root_query.project_to_object(Block)
+
+	def __init__(self, projection_table, elem):
+		super(Document, self).__init__(projection_table, elem)
 		self._editorModel = None
 	
 	

@@ -7,7 +7,7 @@ from BritefuryJ.Pres.Primitive import Primitive, Label, Spacer, Row, Bin, Column
 from BritefuryJ.Pres.RichText import TitleBar, Page, Body, Heading1
 from BritefuryJ.Pres.UI import SectionHeading1
 
-from BritefuryJ.Graphics import SolidBorder
+from BritefuryJ.Graphics import SolidBorder, FillPainter
 
 from BritefuryJ.StyleSheet import StyleSheet
 
@@ -21,6 +21,8 @@ from LarchCore.MainApp.MainAppViewer.AboutPage import AboutPage
 
 _info_style = StyleSheet.style(Primitive.selectable(False), Primitive.editable(False))
 _editable_style = StyleSheet.style(Primitive.selectable(True), Primitive.editable(True))
+
+_section_heading_style = StyleSheet.style(Primitive.background(FillPainter(Color(0.925, 0.925, 0.925))))
 
 _section_border = SolidBorder(1.0, 3.0, 4.0, 4.0, Color(0.4, 0.4, 0.4), None)
 
@@ -46,8 +48,8 @@ class EditorPage (object):
 
 		title = _info_style(TitleBar(self._filename))
 
-		xml_title = SectionHeading1('XML')
-		rich_text_title = SectionHeading1('Rich text')
+		xml_title = _section_heading_style(SectionHeading1('XML (non-editable)')).alignHExpand()
+		rich_text_title = _section_heading_style(SectionHeading1('Rich text (editable)')).alignHExpand()
 
 		with open(self.__path, 'r') as f:
 			xml_rep = xmlmodel.XmlElem.from_file(f)

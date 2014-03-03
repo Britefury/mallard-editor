@@ -4,15 +4,14 @@ from datamodel import xmlmodel, fields
 
 
 
-def for_child_elem(tag):
-	def deco(method):
-		method.__tag__ = tag
-		return method
-	return deco
+class ElementToObjectProjectionTable (object):
+	"""
+	Maps element and object class to object.
 
+	Effectively a dictionary mapping (element, obj_class) -> object
 
-
-class Mapping (object):
+	The elements are weak keys.
+	"""
 	def __init__(self):
 		self.__map = weakref.WeakKeyDictionary()
 
@@ -30,6 +29,9 @@ class Mapping (object):
 
 
 class NodeClass (type):
+	"""
+	Node metaclass
+	"""
 	def __init__(cls, name, bases, dict):
 		super(NodeClass, cls).__init__(name, bases, dict)
 		__tag_mapping__ = {}
@@ -64,40 +66,52 @@ class NodeClass (type):
 
 
 class Node (object):
+	"""
+	Node class
+	"""
 	__metaclass__ = NodeClass
 
-	def __init__(self, mapping, elem):
+	def __init__(self, projection_table, elem):
 		for name, field in self.__fields__.items():
 			field._instance_init(self)
-		self._mapping = mapping
+		self._projection_table = projection_table
 		self.elem = elem
 
 
 
-	def _map_elem(self, elem, default_mapping, tag_mapping):
+	def _project_elem(self, elem, default_class, tag_to_class):
+		"""
+		Create an object for a given element
+
+		:param elem: The element to project
+		"""
 		if isinstance(elem, basestring):
 			return elem
 		elif isinstance(elem, xmlmodel.XmlElem):
-			if default_mapping is not None:
-				cls = default_mapping
-			else:
-				cls = tag_mapping[elem.tag]
-			node = self._mapping.get(elem, cls)
+			cls = tag_to_class.get(elem.tag, default_class)
+			if cls is None:
+				raise TypeError, 'Could not determine object class for \'{0}\' element for node type {1}'.format(elem.tag, type(self))
+			if not isinstance(cls, NodeClass):
+				if callable(cls):
+					cls = cls()
+				else:
+					raise TypeError, 'Object class for \'{0}\' element for node type {1} is of type {2}, should be a NodeClass or a callable'.format(elem.tag, type(self), type(cls))
+			node = self._projection_table.get(elem, cls)
 			if node is None:
-				node = cls(self._mapping, elem)
-				self._mapping.put(elem, cls, node)
+				node = cls(self._projection_table, elem)
+				self._projection_table.put(elem, cls, node)
 			return node
 		else:
 			raise TypeError
 
 
-	def _inv_map_elem(self, x):
-		if isinstance(x, basestring):
-			return x
-		elif isinstance(x, Node):
-			if x._mapping is None:
-				x._mapping = self._mapping
-				x._mapping.put(x.elem, type(x), x)
-			return x.elem
+	def _inv_project_elem(self, obj):
+		if isinstance(obj, basestring):
+			return obj
+		elif isinstance(obj, Node):
+			if obj._projection_table is None:
+				obj._projection_table = self._projection_table
+				obj._projection_table.put(obj.elem, type(obj), obj)
+			return obj.elem
 		else:
-			raise TypeError, 'Cannot inverse map a {0} as it is not a subclass of Node'.format(type(x))
+			raise TypeError, 'Cannot inverse project a {0} as it is not a subclass of Node'.format(type(obj))

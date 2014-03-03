@@ -317,7 +317,7 @@ class XmlElem (object):
 
 		if complex:
 			end = Row([open_angle, slash, tag, close_angle])
-			content = Column([NormalText([x])   for x in self.__contents])
+			content = Column([NormalText([x])   for x in self.__contents   if x != ''])
 			if len(self.__attrs) == 0:
 				start = Row([open_angle, tag, close_angle])
 			else:
@@ -331,7 +331,7 @@ class XmlElem (object):
 					return Paragraph([open_angle, tag, space, br, self.__attrs, slash, close_angle])
 			else:
 				end = Row([open_angle, slash, tag, close_angle])
-				content = [NormalText([x])   for x in self.__contents]
+				content = [RichSpan([x])   for x in self.__contents]
 				if len(self.__attrs) == 0:
 					start = Row([open_angle, tag, close_angle])
 				else:
