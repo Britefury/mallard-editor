@@ -28,6 +28,38 @@ class ElementToObjectProjectionTable (object):
 
 
 
+class ProjectionMapping (object):
+	def __init__(self):
+		self.__default_cls = None
+		self.__tag_to_cls = {}
+
+
+	def set_default_class(self, node_cls):
+		self.__default_cls = node_cls
+
+	def map_tag(self, tag, node_cls):
+		self.__tag_to_cls[tag] = node_cls
+
+
+	def map(self, default_cls=None, **tag_to_cls):
+		if default_cls is not None:
+			self.__default_cls = default_cls
+		self.__tag_to_cls.update(tag_to_cls)
+
+
+	def get_class_for(self, elem):
+		"""
+		Create an object for a given element
+
+		:param elem: The element to project
+		"""
+		return self.__tag_to_cls.get(elem.tag, self.__default_cls)
+
+
+
+
+
+
 class NodeClass (type):
 	"""
 	Node metaclass
@@ -79,16 +111,17 @@ class Node (object):
 
 
 
-	def _project_elem(self, elem, default_class, tag_to_class):
+	def _project_elem(self, elem, mapping):
 		"""
 		Create an object for a given element
 
 		:param elem: The element to project
+		:param mapping: A ProjectionMapping instance
 		"""
 		if isinstance(elem, basestring):
 			return elem
 		elif isinstance(elem, xmlmodel.XmlElem):
-			cls = tag_to_class.get(elem.tag, default_class)
+			cls = mapping.get_class_for(elem)
 			if cls is None:
 				raise TypeError, 'Could not determine object class for \'{0}\' element for node type {1}'.format(elem.tag, type(self))
 			if not isinstance(cls, NodeClass):
@@ -102,7 +135,7 @@ class Node (object):
 				self._projection_table.put(elem, cls, node)
 			return node
 		else:
-			raise TypeError
+			raise TypeError, 'elem should be a string or an XmlElem'
 
 
 	def _inv_project_elem(self, obj):

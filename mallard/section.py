@@ -9,10 +9,11 @@ from BritefuryJ.Graphics import SolidBorder
 
 from BritefuryJ.Live import LiveFunction
 
-from datamodel import xmlmodel, node, elem_fields
+from datamodel import xmlmodel, node
+from datamodel.elem_fields import elem_query
 from controls import text_entry
 
-from . import title, richtext
+from . import mappings, title, richtext
 
 
 
@@ -20,8 +21,8 @@ _section_border = SolidBorder(1.0, 3.0, 5.0, 5.0, Color(0.3, 0.3, 0.3), None)
 
 
 class Section (node.Node):
-	title_elem = elem_fields.root_query.child('title').project_to_object(title=title.Title)
-	text = elem_fields.root_query.project_to_object(richtext.Document)
+	title_elem = elem_query.child('title').project_to_object(mappings.title_mapping)
+	text = elem_query.project_to_object(mappings.as_document_mapping)
 
 
 	def __present__(self, fragment, inh):

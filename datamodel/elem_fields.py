@@ -102,16 +102,15 @@ class ElemQuery (_CompoundSimpleQueryField):
 		"""
 		return ProjectedElemListQuery(self._methods + [lambda instance, elem: elem.children_projected(__selector=__selector, **attrs)])
 
-	def project_to_object(self, __default_class=None, **tag_mapping):
+	def project_to_object(self, mapping):
 		"""
 		Returns a query that will project the element matched by this query to an object
 
-		:param __default_class: the default node class
-		:param tag_mapping: a dictionary mapping element tag name to class
+		:param mapping: a ProjectionMapping instance that defines the mapping from tag to node
 
 		:return: a ProjectElementToObjectQuery
 		"""
-		return ProjectElementToObjectQuery(self, __default_class, tag_mapping)
+		return ProjectElementToObjectQuery(self, mapping)
 
 
 
@@ -128,16 +127,15 @@ class ProjectedElemListQuery (_CompoundSimpleQueryField):
 		"""
 		return ProjectedElemListQuery(self._methods + [lambda instance, projected_list: projected_list.filter(lambda x: xmlmodel._test(x, __selector, False, attrs))])
 
-	def project_to_objects(self, __default_mapping=None, **tag_mapping):
+	def project_to_objects(self, mapping):
 		"""
 		Returns a query that will project the elements matched by this query to objects
 
-		:param __default_class: the default node class
-		:param tag_mapping: a dictionary mapping element tag name to class
+		:param mapping: a ProjectionMapping instance that defines the mapping from tag to node
 
 		:return: a ProjectElementListToObjectListQuery
 		"""
-		return ProjectElementListToObjectListQuery(self, __default_mapping, tag_mapping)
+		return ProjectElementListToObjectListQuery(self, mapping)
 
 
 
@@ -148,15 +146,14 @@ class ProjectElementToObjectQuery (_DerivedQueryField):
 
 	Can also be set
 	"""
-	def __init__(self, underlying_query_field, default_mapping, tag_mapping):
+	def __init__(self, underlying_query_field, mapping):
 		super(ProjectElementToObjectQuery, self).__init__(underlying_query_field)
-		self.__default_mapping = default_mapping
-		self.__tag_mapping = tag_mapping
+		self.__mapping = mapping
 
 
 	def _get(self, instance):
 		elem = self._underlying._get(instance)
-		return instance._project_elem(elem, self.__default_mapping, self.__tag_mapping)
+		return instance._project_elem(elem, self.__mapping)
 
 	def _set(self, instance, value):
 		elem = value.elem
@@ -169,15 +166,14 @@ class ProjectElementListToObjectListQuery (_DerivedQueryField):
 
 	Can also be set
 	"""
-	def __init__(self, underlying_query_field, default_mapping, tag_mapping):
+	def __init__(self, underlying_query_field, mapping):
 		super(ProjectElementListToObjectListQuery, self).__init__(underlying_query_field)
-		self.__default_mapping = default_mapping
-		self.__tag_mapping = tag_mapping
+		self.__mapping = mapping
 
 
 	def _get(self, instance):
 		projected_list = self._underlying._get(instance)
-		return projected_list.map(lambda x: instance._project_elem(x, self.__default_mapping, self.__tag_mapping), lambda x: instance._inv_project_elem(x))
+		return projected_list.map(lambda x: instance._project_elem(x,self.__mapping), lambda x: instance._inv_project_elem(x))
 
 	def _set(self, instance, value):
 		elems = [instance._inv_project_elem(x)   for x in value]
@@ -187,4 +183,5 @@ class ProjectElementListToObjectListQuery (_DerivedQueryField):
 
 
 
-root_query = ElemQuery([])
+
+elem_query = ElemQuery([])

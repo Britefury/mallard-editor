@@ -4,7 +4,8 @@ from BritefuryJ.StyleSheet import StyleSheet
 
 from BritefuryJ.Live import LiveFunction
 
-from datamodel import xmlmodel, node, elem_fields
+from datamodel import xmlmodel, node
+from datamodel.elem_fields import elem_query
 from controls import text_entry
 
 
@@ -13,7 +14,7 @@ from controls import text_entry
 
 
 class Title (node.Node):
-	title_elem = elem_fields.root_query
+	title_elem = elem_query
 
 
 	def __present__(self, fragment, inh):

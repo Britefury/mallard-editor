@@ -29,8 +29,11 @@ from Britefury.Util.Abstract import abstractmethod
 from BritefuryJ.Editor.RichText import RichTextController
 
 
-from datamodel import node, elem_fields, xmlmodel
+from datamodel import node, xmlmodel
+from datamodel.elem_fields import elem_query
 import mallard
+
+from . import mappings
 
 
 
@@ -108,7 +111,7 @@ class MRTAbstractText (MRTElem):
 
 
 class Style (MRTAbstractText):
-	contents_query = elem_fields.root_query.children().project_to_objects()
+	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
 
 	def __init__(self, projection_table, elem, contents=None, style_attrs=None):
 		super(Style, self).__init__(projection_table, elem, contents)
@@ -150,8 +153,9 @@ class Style (MRTAbstractText):
 
 
 
+
 class Para (MRTAbstractText):
-	contents_query = elem_fields.root_query.children().project_to_objects(Style)
+	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
 
 	def __init__(self, projection_table, elem, contents=None, attrs=None):
 		super(Para, self).__init__(projection_table, elem, contents)
@@ -230,7 +234,7 @@ class _Embed (MRTElem):
 		pass
 
 class InlineEmbed (_Embed):
-	value = elem_fields.root_query.project_to_object()
+	value = elem_query.project_to_object(mappings.inline_embed_value_mapping)
 
 	def __init__(self, projection_table, elem):
 		super(InlineEmbed, self).__init__(projection_table, elem)
@@ -243,7 +247,7 @@ class InlineEmbed (_Embed):
 
 
 class ParaEmbed (_Embed):
-	value = elem_fields.root_query.project_to_object(section=lambda: mallard.section.Section, note=lambda: mallard.note.Note)
+	value = elem_query.project_to_object(mappings.para_embed_value_mapping)
 
 	def __init__(self, projection_table, elem):
 		super(ParaEmbed, self).__init__(projection_table, elem)
@@ -279,7 +283,7 @@ def _paraEmbedContextMenuFactory(element, menu):
 
 
 class Block (MRTElem):
-	contents_query = elem_fields.root_query.children(['p', 'section', 'note']).project_to_objects(ParaEmbed, p=Para)
+	contents_query = elem_query.children(['p', 'section', 'note']).project_to_objects(mappings.block_contents_mapping)
 
 	def __init__(self, projection_table, elem, contents=None):
 		super(Block, self).__init__(projection_table, elem)
@@ -338,7 +342,7 @@ class Block (MRTElem):
 
 
 class Document (MRTElem):
-	block_query = elem_fields.root_query.project_to_object(Block)
+	block_query = elem_query.project_to_object(mappings.as_block_mapping)
 
 	def __init__(self, projection_table, elem):
 		super(Document, self).__init__(projection_table, elem)
@@ -486,22 +490,3 @@ def _imageFileChooser(element, imageValueFn):
 		if sf is not None:
 			return imageValueFn(sf)
 	return None
-
-def italic(*x):
-	return Style(x, {'italic':True})
-
-def bold(*x):
-	return Style(x, {'bold':True})
-
-def para(*x):
-	return Para(x)
-
-#
-# p1 = para('Hello world, ', italic('this ', bold('is a '), 'test'))
-# p2 = para('This is the ', italic('second '), 'line')
-# d1 = Document(Block([p1, p2]))
-# d2 = Document(Block([]))
-# d1
-#
-# #
-#

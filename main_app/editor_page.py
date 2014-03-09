@@ -1,4 +1,4 @@
-import os
+import os, sys
 
 from java.awt import Color
 
@@ -27,6 +27,16 @@ _section_heading_style = StyleSheet.style(Primitive.background(FillPainter(Color
 _section_border = SolidBorder(1.0, 3.0, 4.0, 4.0, Color(0.4, 0.4, 0.4), None)
 
 
+def unload_modules_starting_with(prefixes):
+	to_remove = []
+	for m in sys.modules:
+		for prefix in prefixes:
+			if m.startswith(prefix):
+				to_remove.append(m)
+	for m in to_remove:
+		del sys.modules[m]
+
+
 class EditorPage (object):
 	def __init__(self, path):
 		self.__path = path
@@ -43,8 +53,10 @@ class EditorPage (object):
 
 
 	def __present__(self , fragment, inherited_state):
+		unload_modules_starting_with(['controls', 'datamodel', 'mallard'])
+
 		from datamodel import xmlmodel
-		from mallard import page
+		from mallard import mallard
 
 		title = _info_style(TitleBar(self._filename))
 
@@ -54,7 +66,7 @@ class EditorPage (object):
 		with open(self.__path, 'r') as f:
 			xml_rep = xmlmodel.XmlElem.from_file(f)
 
-		rich_text_rep = page.Page.for_elem(xml_rep)
+		rich_text_rep = mallard.edit(xml_rep)
 
 		xml_contents = Column([xml_title, Spacer(0.0, 20.0), Pres.coerce(xml_rep).alignVRefY()])
 		rich_text_contents = Column([rich_text_title, Spacer(0.0, 20.0), _editable_style(rich_text_rep).alignVRefY()])
