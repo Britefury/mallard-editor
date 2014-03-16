@@ -27,6 +27,7 @@ from BritefuryJ.Incremental import IncrementalValueMonitor
 from Britefury.Util.Abstract import abstractmethod
 
 from BritefuryJ.Editor.RichText import RichTextController
+from BritefuryJ.Editor.RichText.Attrs import RichTextAttributes
 
 
 from datamodel import node, xmlmodel
@@ -53,11 +54,11 @@ class MallardRichTextController (RichTextController):
 	def buildParagraphEmbed(self, value):
 		return ParaEmbed(value)
 	
-	def buildParagraph(self, contents, styleAttrs):
-		return Para.new_p(None, contents, dict(styleAttrs))
+	def buildParagraph(self, contents, paraAttrs):
+		return Para.new_p(None, contents, paraAttrs)
 
-	def buildSpan(self, contents, styleAttrs):
-		return Style(contents, dict(styleAttrs))
+	def buildSpan(self, contents, spanAttrs):
+		return Style(contents, spanAttrs)
 	
 	
 	def isDataModelObject(self, x):
@@ -113,17 +114,17 @@ class MRTAbstractText (MRTElem):
 class Style (MRTAbstractText):
 	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
 
-	def __init__(self, projection_table, elem, contents=None, style_attrs=None):
+	def __init__(self, projection_table, elem, contents=None, span_attrs=None):
 		super(Style, self).__init__(projection_table, elem, contents)
-		if style_attrs is None:
-			style_attrs = {}
-		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), style_attrs)
-		self.setStyleAttrs(style_attrs)
+		if span_attrs is None:
+			span_attrs = RichTextAttributes()
+		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), span_attrs)
+		self.setStyleAttrs(span_attrs)
 
 	def setStyleAttrs(self, styleAttrs):
 		self._styleAttrs = styleAttrs
 		self._styleSheet = self._mapStyles(styleAttrs)
-		self._editorModel.setStyleAttrs(styleAttrs)
+		self._editorModel.setSpanAttrs(styleAttrs)
 		self._incr.onChanged()
 
 	def getStyleAttrs(self):
@@ -141,12 +142,12 @@ class Style (MRTAbstractText):
 	_styleMap['italic'] = lambda x: (Primitive.fontItalic, bool(x))
 	_styleMap['bold'] = lambda x: (Primitive.fontBold, bool(x))
 
-	def _mapStyles(self, styleAttrs):
+	def _mapStyles(self, spanAttrs):
 		styleSheet = StyleSheet.instance
-		for k in styleAttrs:
+		for k in spanAttrs.keySet():
 			f = self._styleMap.get(k)
 			if f is not None:
-				(attrib, value) = f(styleAttrs[k])
+				(attrib, value) = f(spanAttrs.get(k, 0))
 				styleSheet = styleSheet.withAttr(attrib, value)
 		return styleSheet
 
@@ -165,12 +166,15 @@ class Para (MRTAbstractText):
 			attrs = dict(attrs)
 		self._style = attrs.get('style', 'normal')
 
-		self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), {'style':self._style})
+		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
+
+		self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), para_attrs)
 	
 	
 	def setStyle(self, style):
 		self._style = style
-		self._editorModel.setStyleAttrs({'style':style})
+		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
+		self._editorModel.setParaAttrs(para_attrs)
 		self._incr.onChanged()
 	
 	_styleMap = {'normal':NormalText, 'h1':Heading1, 'h2':Heading2, 'h3':Heading3, 'h4':Heading4, 'h5':Heading5, 'h6':Heading6, 'title':Title}
@@ -197,7 +201,8 @@ class _TempBlankPara (MRTElem):
 		self._block = block
 		self._style = 'normal'
 		self._incr = IncrementalValueMonitor()
-		self._editorModel = _editor.editorModelParagraph([], {'style':self._style})
+		para_attrs = RichTextAttributes.fromValues({'style': self._style}, None)
+		self._editorModel = _editor.editorModelParagraph([], para_attrs)
 		
 	
 	def setContents(self, contents):
