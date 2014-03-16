@@ -1,6 +1,7 @@
 from java.util import List
 from java.lang import System
 from java.awt.datatransfer import DataFlavor
+from java.awt import Color
 from javax.imageio import ImageIO
 from javax.swing import JFileChooser
 
@@ -12,7 +13,7 @@ from BritefuryJ.Controls import MenuItem, Hyperlink, Button, VPopupMenu
 
 
 from BritefuryJ.Pres import Pres
-from BritefuryJ.Pres.Primitive import Primitive, Border, Image
+from BritefuryJ.Pres.Primitive import Primitive, Border, Image, Label
 from BritefuryJ.Pres.RichText import Heading1, Heading2, Heading3, Heading4, Heading5, Heading6, NormalText, Title, RichSpan, Body
 from BritefuryJ.Pres.UI import ControlsRow, Section, SectionHeading2
 
@@ -21,6 +22,7 @@ from BritefuryJ.LSpace.Input import DndHandler
 from BritefuryJ.LSpace.Marker import Marker
 
 from BritefuryJ.StyleSheet import StyleSheet
+from BritefuryJ.Graphics import SolidBorder
 
 from BritefuryJ.Incremental import IncrementalValueMonitor
 
@@ -37,7 +39,7 @@ import mallard
 from . import mappings
 
 
-
+_XML_ELEM = 'xmlelem'
 
 
 class MallardRichTextController (RichTextController):
@@ -49,16 +51,26 @@ class MallardRichTextController (RichTextController):
 	
 	
 	def buildInlineEmbed(self, value):
-		return InlineEmbed(value)
-	
+		return value.copy()
+
 	def buildParagraphEmbed(self, value):
-		return ParaEmbed(value)
-	
+		return value.copy()
+
 	def buildParagraph(self, contents, paraAttrs):
 		return Para.new_p(None, contents, paraAttrs)
 
 	def buildSpan(self, contents, spanAttrs):
-		return Style(contents, spanAttrs)
+		xml_elem = spanAttrs.getAttrVal(_XML_ELEM)
+		if xml_elem is not None:
+			elems = [x   for x in xml_elem]
+			if len(elems) > 0:
+				span = None
+				for elem_tag_and_attrs in reversed(elems):
+					span = XmlElemSpan.new_span(None, contents, elem_tag_and_attrs)
+					contents = [span]
+				return span
+
+		return Style.new_span(None, contents, spanAttrs)
 	
 	
 	def isDataModelObject(self, x):
@@ -118,7 +130,7 @@ class Style (MRTAbstractText):
 		super(Style, self).__init__(projection_table, elem, contents)
 		if span_attrs is None:
 			span_attrs = RichTextAttributes()
-		self._editorModel = _editor.editorModelSpan(self.coerce_contents(contents), span_attrs)
+		self._editorModel = _editor.editorModelSpan(list(self.contents_query), span_attrs)
 		self.setStyleAttrs(span_attrs)
 
 	def setStyleAttrs(self, styleAttrs):
@@ -147,9 +159,71 @@ class Style (MRTAbstractText):
 		for k in spanAttrs.keySet():
 			f = self._styleMap.get(k)
 			if f is not None:
-				(attrib, value) = f(spanAttrs.get(k, 0))
+				(attrib, value) = f(spanAttrs.getValue(k, 0))
 				styleSheet = styleSheet.withAttr(attrib, value)
 		return styleSheet
+
+	@staticmethod
+	def new_span(mapping, contents, style_attrs=None):
+		raise NotImplementedError
+		return Style(mapping, xmlmodel.XmlElem('????'), contents, style_attrs)
+
+
+
+class XmlElemTagAndAttrs (object):
+	def __init__(self, tag, attrs):
+		self.tag = tag
+		self.attrs = attrs
+
+
+	def create_xml_elem(self):
+		return xmlmodel.XmlElem(self.tag, **self.attrs)
+
+
+	@staticmethod
+	def from_xml_elem(e):
+		return XmlElemTagAndAttrs(e.tag, e.attrs.attrs_dict())
+
+
+
+class XmlElemSpan (MRTAbstractText):
+	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
+
+	def __init__(self, projection_table, elem, contents=None):
+		super(XmlElemSpan, self).__init__(projection_table, elem, contents)
+		elem_tag_and_attrs = XmlElemTagAndAttrs.from_xml_elem(elem)
+		self._elem_tag_and_attrs = elem_tag_and_attrs
+		self._editorModel = _editor.editorModelSpan(list(self.contents_query), self._span_attrs(elem_tag_and_attrs))
+
+	def setElementTagAndAttrs(self, elem_tag_and_attrs):
+		self._elem_tag_and_attrs = elem_tag_and_attrs
+		self._editorModel.setSpanAttrs(self._span_attrs(elem_tag_and_attrs))
+		self._incr.onChanged()
+
+	def getElementTagAndAttrs(self):
+		self._incr.onAccess()
+		return self._elem_tag_and_attrs
+
+	def __present__(self, fragment, inheritedState):
+		self._incr.onAccess()
+		open_tag = self._tag_border.surround(self._open_tag_style(Label(self._elem_tag_and_attrs.tag)))
+		close_tag = self._tag_border.surround(self._close_tag_style(Label('/' + self._elem_tag_and_attrs.tag)))
+		x = RichSpan([open_tag] + list(self.contents_query) + [close_tag])
+		x = _editor.editableSpan(self, x)
+		return x
+
+	@staticmethod
+	def _span_attrs(elem_tag_and_attrs):
+		return RichTextAttributes.fromValues(None, {_XML_ELEM: [elem_tag_and_attrs]})
+
+
+	@staticmethod
+	def new_span(mapping, contents, elem_tag_and_attrs):
+		return XmlElemSpan(mapping, elem_tag_and_attrs.create_xml_elem(), contents)
+
+	_tag_border = SolidBorder(1.0, 1.0, 4.0, 4.0, Color(0.4, 0.42, 0.45), Color(0.95, 0.975, 1.0))
+	_open_tag_style = StyleSheet.style(Primitive.fontSize(10), Primitive.foreground(Color(0.0, 0.3, 0.8)), Primitive.fontFace('Monospaced'))
+	_close_tag_style = StyleSheet.style(Primitive.fontSize(10), Primitive.foreground(Color(0.3, 0.35, 0.4)), Primitive.fontFace('Monospaced'))
 
 
 
@@ -160,16 +234,17 @@ class Para (MRTAbstractText):
 
 	def __init__(self, projection_table, elem, contents=None, attrs=None):
 		super(Para, self).__init__(projection_table, elem, contents)
-		if attrs is None:
-			attrs = {}
-		else:
-			attrs = dict(attrs)
-		self._style = attrs.get('style', 'normal')
+		style = None
+		if attrs is not None:
+			style = attrs.getValue('style', 0)
+		style = style   if style is not None   else 'normal'
+		self._style = style
 
 		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
 
-		self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), para_attrs)
-	
+		# self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), para_attrs)
+		self._editorModel = _editor.editorModelParagraph(self, list(self.contents_query), para_attrs)
+
 	
 	def setStyle(self, style):
 		self._style = style
@@ -236,7 +311,8 @@ class _TempBlankPara (MRTElem):
 
 class _Embed (MRTElem):
 	def copy(self):
-		pass
+		raise NotImplementedError, 'abstract for {0}'.format(type(self))
+
 
 class InlineEmbed (_Embed):
 	value = elem_query.project_to_object(mappings.inline_embed_value_mapping)
@@ -250,6 +326,9 @@ class InlineEmbed (_Embed):
 		x = _editor.editableInlineEmbed(self, x)
 		return x
 
+	def copy(self):
+		return InlineEmbed(self._projection_table, self.elem)
+
 
 class ParaEmbed (_Embed):
 	value = elem_query.project_to_object(mappings.para_embed_value_mapping)
@@ -262,6 +341,11 @@ class ParaEmbed (_Embed):
 		x = Pres.coerce(self.value).withContextMenuInteractor(_paraEmbedContextMenuFactory)
 		x = _editor.editableParagraphEmbed(self, x)
 		return x
+
+	def copy(self):
+		return ParaEmbed(self._projection_table, self.elem)
+
+
 
 
 def _inlineEmbedContextMenuFactory(element, menu):
