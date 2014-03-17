@@ -115,6 +115,17 @@ class ElemQuery (_CompoundSimpleQueryField):
 
 
 class ProjectedElemListQuery (_CompoundSimpleQueryField):
+	def map(self, fn, inv_fn):
+		"""
+		Returns a query that will map the elements matching this query, applying the function fn in the forwards direction and invfn in the reverse
+
+		:param fn: a function of the form function(x) that converts a value to the mapped value
+		:param inv_fn: the inverse function of fn
+
+		:return: an ProjectedElemListQuery
+		"""
+		return ProjectedElemListQuery(self._methods + [lambda instance, projected_list: projected_list.map(fn, inv_fn)])
+
 	def filter(self, __selector=None, **attrs):
 		"""
 		Returns a query that will filter the elements matching this query, retaining elements that match the provided tests

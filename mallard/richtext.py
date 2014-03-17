@@ -5,7 +5,7 @@ from java.awt import Color
 from javax.imageio import ImageIO
 from javax.swing import JFileChooser
 
-import itertools
+import itertools, re
 
 from copy import copy
 
@@ -40,6 +40,23 @@ from . import mappings
 
 
 _XML_ELEM = 'xmlelem'
+
+_ws_matcher = re.compile(r'\s+')
+
+
+def _remove_whitespace(x):
+	if isinstance(x, basestring):
+		y = _ws_matcher.sub(' ', x)
+		if x != y:
+			print 'SUB'
+		return y
+	else:
+		return x
+
+def _identity(x):
+	return x
+
+
 
 
 class MallardRichTextController (RichTextController):
@@ -125,7 +142,7 @@ class MRTAbstractText (MRTElem):
 
 
 class Style (MRTAbstractText):
-	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
+	contents_query = elem_query.children().map(_remove_whitespace, _identity).project_to_objects(mappings.text_mapping)
 
 	def __init__(self, projection_table, elem, contents=None, span_attrs=None):
 		super(Style, self).__init__(projection_table, elem, contents)
@@ -191,7 +208,7 @@ class XmlElemTagAndAttrs (object):
 
 
 class XmlElemSpan (MRTAbstractText):
-	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
+	contents_query = elem_query.children().map(_remove_whitespace, _identity).project_to_objects(mappings.text_mapping)
 
 	def __init__(self, projection_table, elem, contents=None):
 		super(XmlElemSpan, self).__init__(projection_table, elem, contents)
@@ -237,7 +254,7 @@ class XmlElemSpan (MRTAbstractText):
 
 
 class Para (MRTAbstractText):
-	contents_query = elem_query.children().project_to_objects(mappings.text_mapping)
+	contents_query = elem_query.children().map(_remove_whitespace, _identity).project_to_objects(mappings.text_mapping)
 
 	def __init__(self, projection_table, elem, contents=None, attrs=None):
 		super(Para, self).__init__(projection_table, elem, contents)
