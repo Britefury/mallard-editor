@@ -2,9 +2,9 @@ from java.awt import Color
 
 from javax.swing import JFileChooser
 
-from org.python.core.util import FileUtil
+from org.python.core.util import FileUtil, StringUtil
 
-import os, glob, zipfile
+import os, glob, zipfile, cStringIO
 
 from BritefuryJ.Controls import Hyperlink
 
@@ -35,16 +35,22 @@ _dir_style = StyleSheet.style(Primitive.foreground(Color(0.0, 0.2, 0.4)))
 def _get_examples():
 	names_and_bytes = None
 
+	# z is the zip file containing the examples
 	z = None
 	if app_in_jar.startedFromJar():
+		# App started from JAR; attempt to acquire through java.lang.Class.getResourceAsStream()
 		stream = Column.getResourceAsStream('/mallard_examples.zip')
+
 		if stream is not None:
-			f = FileUtil.wrap(stream)
+			# Convert to cStringIO; FileUtil.wrap does not seem to work well with ZipFile
+			fbytes = StringUtil.fromBytes(FileUtil.readBytes(stream))
+			f = cStringIO.StringIO(fbytes)
 			try:
 				z = zipfile.ZipFile(f, 'r')
 			except zipfile.BadZipfile:
 				pass
 
+	# App was not started from JAR, or loading failed; see if the ZIP file can be found in the file system
 	if z is None:
 		if os.path.isfile('mallard_examples.zip'):
 			try:
