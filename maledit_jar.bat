@@ -1,7 +1,7 @@
 @echo off
 
 REM *** Set the path to your Larch JAR here
-set LARCH_JAR_PATH=larch-in-a-jar-0.1.33-alpha.jar
+set LARCH_JAR_PATH=larch-in-a-jar-0.1.34-alpha.jar
 
 REM Check its correct
 if not exist %LARCH_JAR_PATH% goto LARCH_JAR_NOT_SET

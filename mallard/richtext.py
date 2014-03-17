@@ -109,6 +109,7 @@ class MRTAbstractText (MRTElem):
 		if contents is not None:
 			self.setContents(contents)
 
+
 	def _on_changed(self):
 		self._editorModel.setModelContents(_editor,  self.contents_query)
 		self._incr.onChanged()
@@ -130,8 +131,11 @@ class Style (MRTAbstractText):
 		super(Style, self).__init__(projection_table, elem, contents)
 		if span_attrs is None:
 			span_attrs = RichTextAttributes()
-		self._editorModel = _editor.editorModelSpan(list(self.contents_query), span_attrs)
+		self._editorModel = _editor.editorModelSpan([], span_attrs)
 		self.setStyleAttrs(span_attrs)
+
+	def node_init(self):
+		self._editorModel.setModelContents(_editor, list(self.contents_query))
 
 	def setStyleAttrs(self, styleAttrs):
 		self._styleAttrs = styleAttrs
@@ -193,7 +197,10 @@ class XmlElemSpan (MRTAbstractText):
 		super(XmlElemSpan, self).__init__(projection_table, elem, contents)
 		elem_tag_and_attrs = XmlElemTagAndAttrs.from_xml_elem(elem)
 		self._elem_tag_and_attrs = elem_tag_and_attrs
-		self._editorModel = _editor.editorModelSpan(list(self.contents_query), self._span_attrs(elem_tag_and_attrs))
+		self._editorModel = _editor.editorModelSpan([], self._span_attrs(elem_tag_and_attrs))
+
+	def node_init(self):
+		self._editorModel.setModelContents(_editor, list(self.contents_query))
 
 	def setElementTagAndAttrs(self, elem_tag_and_attrs):
 		self._elem_tag_and_attrs = elem_tag_and_attrs
@@ -242,10 +249,13 @@ class Para (MRTAbstractText):
 
 		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
 
-		# self._editorModel = _editor.editorModelParagraph(self, self.coerce_contents(contents), para_attrs)
-		self._editorModel = _editor.editorModelParagraph(self, list(self.contents_query), para_attrs)
+		self._editorModel = _editor.editorModelParagraph(self, [], para_attrs)
 
 	
+	def node_init(self):
+		self._editorModel.setModelContents(_editor, list(self.contents_query))
+
+
 	def setStyle(self, style):
 		self._style = style
 		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
@@ -382,13 +392,17 @@ class Block (MRTElem):
 		if contents is not None:
 			self.setContents(contents)
 
+	def node_init(self):
+		self._editorModel.setModelContents(_editor, list(self.contents_query))
+
+
 
 	def _filterContents(self, xs):
 		return [x   for x in xs   if not isinstance(x, _TempBlankPara)]
 	
 	
 	def _on_changed(self):
-		self._editorModel.setModelContents(_editor,  self.contents_query)
+		self._editorModel.setModelContents(_editor, list(self.contents_query))
 		self._incr.onChanged()
 
 

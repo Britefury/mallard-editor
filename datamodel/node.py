@@ -107,8 +107,31 @@ class Node (object):
 		for name, field in self.__fields__.items():
 			field._instance_init(self)
 		self._projection_table = projection_table
+		self.__children_without_projection_table = None
 		self.elem = elem
 
+
+	def node_init(self):
+		pass
+
+
+	def _copy_projection_table_to_child(self, child):
+		if self._projection_table is not None:
+			child._set_projection_table(self._projection_table)
+			self._projection_table.put(child.elem, type(child), child)
+		else:
+			if self.__children_without_projection_table is None:
+				self.__children_without_projection_table = [child]
+			else:
+				self.__children_without_projection_table.append(child)
+
+
+	def _set_projection_table(self, tbl):
+		self._projection_table = tbl
+		if self.__children_without_projection_table is not None:
+			for child in self.__children_without_projection_table:
+				child._set_projection_table(tbl)
+			self.__children_without_projection_table = None
 
 
 	def _project_elem(self, elem, mapping):
@@ -133,6 +156,7 @@ class Node (object):
 			if node is None:
 				node = cls(self._projection_table, elem)
 				self._projection_table.put(elem, cls, node)
+				node.node_init()
 			return node
 		else:
 			raise TypeError, 'elem should be a string or an XmlElem'
@@ -143,8 +167,7 @@ class Node (object):
 			return obj
 		elif isinstance(obj, Node):
 			if obj._projection_table is None:
-				obj._projection_table = self._projection_table
-				obj._projection_table.put(obj.elem, type(obj), obj)
+				self._copy_projection_table_to_child(obj)
 			return obj.elem
 		else:
 			raise TypeError, 'Cannot inverse project a {0} as it is not a subclass of Node'.format(type(obj))

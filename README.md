@@ -50,9 +50,9 @@ Build with:
 
 	ant -Dlarch.version={{larch version}} -Dmaledit.version={{mallard editor version}}
 
-For example, to use Larch 0.1.33-alpha to create Mallard Editor version 0.1, ise:
+For example, to use Larch 0.1.34-alpha to create Mallard Editor version 0.1, ise:
 
-	ant -Dlarch.version=0.1.33-alpha -Dmaledit.version=0.1
+	ant -Dlarch.version=0.1.34-alpha -Dmaledit.version=0.1
 
 
 

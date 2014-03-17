@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # *** Set the path to your Larch JAR here
-LARCH_JAR_PATH=larch-in-a-jar-0.1.33-alpha.jar
+LARCH_JAR_PATH=larch-in-a-jar-0.1.34-alpha.jar
 
 # Check its correct
 if [ ! -f $LARCH_JAR_PATH ]; then

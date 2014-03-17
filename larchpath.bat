@@ -1,4 +1,4 @@
-REM set LARCHVERSION=0.1.31v-alpha
+REM set LARCHVERSION=0.1.34-alpha
 
 REM set LARCHPATH=\Development\larch-%LARCHVERSION%
 
