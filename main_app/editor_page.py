@@ -38,14 +38,22 @@ def unload_modules_starting_with(prefixes):
 
 
 class EditorPage (object):
-	def __init__(self, path):
-		self.__path = path
-		_, self._filename = os.path.split(path)
+	def __init__(self, filename, xml_path=None, xml_bytes=None):
+		self._filename = filename
+		self.__xml_path = xml_path
+		self.__xml_bytes = xml_bytes
 
 
-	@property
-	def path(self):
-		return self.__path
+	@staticmethod
+	def from_path(path):
+		filename = os.path.split(path)[1]
+		return EditorPage(filename, xml_path=path)
+
+
+	@staticmethod
+	def from_bytes(filename, xml_bytes):
+		return EditorPage(filename, xml_bytes=xml_bytes)
+
 
 	@property
 	def filename(self):
@@ -63,8 +71,13 @@ class EditorPage (object):
 		xml_title = _section_heading_style(SectionHeading1('XML (non-editable)')).alignHExpand()
 		rich_text_title = _section_heading_style(SectionHeading1('Rich text (editable)')).alignHExpand()
 
-		with open(self.__path, 'r') as f:
-			xml_rep = xmlmodel.XmlElem.from_file(f)
+		if self.__xml_path is not None:
+			with open(self.__xml_path, 'r') as f:
+				xml_rep = xmlmodel.XmlElem.from_file(f)
+		elif self.__xml_bytes is not None:
+			xml_rep = xmlmodel.XmlElem.from_string(self.__xml_bytes)
+		else:
+			raise ValueError, 'Must provide either path or bytes'
 
 		rich_text_rep = mallard.edit(xml_rep)
 

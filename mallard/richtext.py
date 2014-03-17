@@ -46,10 +46,7 @@ _ws_matcher = re.compile(r'\s+')
 
 def _remove_whitespace(x):
 	if isinstance(x, basestring):
-		y = _ws_matcher.sub(' ', x)
-		if x != y:
-			print 'SUB'
-		return y
+		return _ws_matcher.sub(' ', x)
 	else:
 		return x
 
