@@ -13,7 +13,7 @@ from datamodel import xmlmodel, node
 from datamodel.elem_fields import elem_query
 from controls import text_entry
 
-from . import mappings, title, richtext
+from . import mappings, title, rich_text
 
 
 

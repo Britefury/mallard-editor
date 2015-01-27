@@ -9,7 +9,7 @@ from datamodel import xmlmodel, node
 from datamodel.elem_fields import elem_query
 from controls import text_entry
 
-from . import mappings, title, section, note, richtext
+from . import mappings, title, section, note, rich_text
 
 
 
