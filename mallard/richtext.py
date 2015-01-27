@@ -59,11 +59,11 @@ def _identity(x):
 class MallardRichTextController (RichTextController):
 	def setModelContents(self, model, contents):
 		model.setContents(contents)
-	
+
 	def modelToEditorModel(self, model):
 		return model._editorModel
-	
-	
+
+
 	def buildInlineEmbed(self, value):
 		return value.copy()
 
@@ -85,17 +85,17 @@ class MallardRichTextController (RichTextController):
 				return span
 
 		return Style.new_span(None, contents, spanAttrs)
-	
-	
+
+
 	def isDataModelObject(self, x):
 		return isinstance(x, MRTElem)
-	
+
 	def insertParagraphIntoBlockAfter(self, block, paragraph, p):
 		block.insertAfter(paragraph, p)
-	
+
 	def deleteParagraphFromBlock(self, block, paragraph):
 		block.removeParagraph(paragraph)
-	
+
 	def deepCopyInlineEmbedValue(self, value):
 		return value
 
@@ -138,85 +138,6 @@ class MRTAbstractText (MRTElem):
 
 
 
-
-
-
-
-
-class StyleAttribute (object):
-	tag_name_to_attr = {}
-
-
-	def __init__(self, tag_name):
-		self.tag_name = tag_name
-
-		self.tag_name_to_attr[tag_name] = self
-
-
-	def make_style_function(self, value):
-		raise NotImplementedError
-
-	def make_xml_element(self, rich_text_attributes, child):
-		raise NotImplementedError
-
-	def store_value_from_element(self, rich_text_attributes, element):
-		raise NotImplementedError
-
-	def boolean_pres_fn(self, apply_to_pres):
-		self.__style_function = lambda value: (lambda p: apply_to_pres(p))   if value   else None
-
-
-class BooleanStyleAttribute (StyleAttribute):
-	def __init__(self, tag_name):
-		super(BooleanStyleAttribute, self).__init__(tag_name)
-		self.__apply_to_pres = None
-
-	def apply_to_pres(self, fn):
-		self.__apply_to_pres = fn
-
-	def make_style_function(self, value):
-		if value:
-			return self.__apply_to_pres
-		else:
-			return None
-
-	def make_xml_element(self, rich_text_attributes, child):
-		value = rich_text_attributes.getValue(self.tag_name, 0)
-		if value:
-			e = xmlmodel.XmlElem(self.tag_name)
-			if child is not None:
-				e.append(child)
-			return e
-		else:
-			return child
-
-
-	def store_value_from_element(self, rich_text_attributes, element):
-		rich_text_attributes.putOverride(self.tag_name, True)
-
-
-
-_italic_style = StyleSheet.instance.withValues(Primitive.fontItalic(True))
-_bold_style = StyleSheet.instance.withValues(Primitive.fontBold(True))
-_code_style = StyleSheet.instance.withValues(Primitive.fontFace(Primitive.monospaceFontName),
-		Primitive.background(FilledOutlinePainter(Color(0.9, 0.9, 0.9), Color(0.75, 0.75, 0.75))))
-
-
-
-italic_style_attr = BooleanStyleAttribute('i')
-@italic_style_attr.apply_to_pres
-def apply_italic_style(p):
-	return _italic_style.applyTo(p)
-
-bold_style_attr = BooleanStyleAttribute('b')
-@bold_style_attr.apply_to_pres
-def apply_bold_style(p):
-	return _bold_style.applyTo(p)
-
-code_style_attr = BooleanStyleAttribute('code')
-@code_style_attr.apply_to_pres
-def apply_code_style(p):
-	return _code_style.applyTo(p)
 
 
 
@@ -279,6 +200,110 @@ class Style (MRTAbstractText):
 			return Style(mapping, elem, contents, style_attrs)
 		else:
 			raise NotImplementedError
+
+
+
+
+
+
+
+class StyleAttribute (object):
+	tag_name_to_attr = {}
+
+
+	def __init__(self, tag_name):
+		self.tag_name = tag_name
+
+		self.tag_name_to_attr[tag_name] = self
+		mappings.text_mapping.map_tag(tag_name, Style)
+
+
+	def make_style_function(self, value):
+		raise NotImplementedError
+
+	def make_xml_element(self, rich_text_attributes, child):
+		raise NotImplementedError
+
+	def store_value_from_element(self, rich_text_attributes, element):
+		raise NotImplementedError
+
+	def boolean_pres_fn(self, apply_to_pres):
+		self.__style_function = lambda value: (lambda p: apply_to_pres(p))   if value   else None
+
+
+class BooleanStyleAttribute (StyleAttribute):
+	def __init__(self, tag_name):
+		super(BooleanStyleAttribute, self).__init__(tag_name)
+		self.__apply_to_pres = None
+
+	def apply_to_pres(self, fn):
+		self.__apply_to_pres = fn
+
+	def make_style_function(self, value):
+		if value:
+			return self.__apply_to_pres
+		else:
+			return None
+
+	def make_xml_element(self, rich_text_attributes, child):
+		value = rich_text_attributes.getValue(self.tag_name, 0)
+		if value:
+			e = xmlmodel.XmlElem(self.tag_name)
+			if child is not None:
+				e.append(child)
+			return e
+		else:
+			return child
+
+
+	def store_value_from_element(self, rich_text_attributes, element):
+		rich_text_attributes.putOverride(self.tag_name, True)
+
+
+
+_italic_style = StyleSheet.instance.withValues(Primitive.fontItalic(True))
+_bold_style = StyleSheet.instance.withValues(Primitive.fontBold(True))
+_code_style = StyleSheet.instance.withValues(Primitive.fontFace(Primitive.monospaceFontName),
+		Primitive.background(FilledOutlinePainter(Color(0.9, 0.9, 0.9), Color(0.75, 0.75, 0.75))))
+_cmd_style = StyleSheet.instance.withValues(Primitive.fontFace(Primitive.monospaceFontName),
+		Primitive.background(FilledOutlinePainter(Color(0.9, 0.9, 0.9), Color(0.75, 0.75, 0.75))),
+		Primitive.foreground(Color(0.0, 0.5, 0.0)))
+_cmd_prompt_style = StyleSheet.instance.withValues(Primitive.foreground(Color(0.0, 0.6, 0.5)))
+_app_style = StyleSheet.instance.withValues(Primitive.fontItalic(True),
+					    Primitive.foreground(Color(0.5, 0.0, 0.0)))
+
+
+
+italic_style_attr = BooleanStyleAttribute('i')
+@italic_style_attr.apply_to_pres
+def apply_italic_style(p):
+	return _italic_style.applyTo(p)
+
+bold_style_attr = BooleanStyleAttribute('b')
+@bold_style_attr.apply_to_pres
+def apply_bold_style(p):
+	return _bold_style.applyTo(p)
+
+code_style_attr = BooleanStyleAttribute('code')
+@code_style_attr.apply_to_pres
+def apply_code_style(p):
+	return _code_style.applyTo(p)
+
+cmd_style_attr = BooleanStyleAttribute('cmd')
+@cmd_style_attr.apply_to_pres
+def apply_cmd_style(p):
+	prompt = _cmd_prompt_style.applyTo(Label('$ '))
+	return _cmd_style.applyTo(RichSpan([prompt, p]))
+
+app_style_attr = BooleanStyleAttribute('app')
+@app_style_attr.apply_to_pres
+def apply_app_style(p):
+	return _app_style.applyTo(p)
+
+
+
+
+
 
 
 
@@ -359,7 +384,7 @@ class Para (MRTAbstractText):
 
 		self._editorModel = _editor.editorModelParagraph(self, [], para_attrs)
 
-	
+
 	def node_init(self):
 		self._editorModel.setModelContents(_editor, list(self.contents_query))
 
@@ -369,9 +394,9 @@ class Para (MRTAbstractText):
 		para_attrs = RichTextAttributes.fromValues({'style':self._style}, None)
 		self._editorModel.setParaAttrs(para_attrs)
 		self._incr.onChanged()
-	
+
 	_styleMap = {'normal':NormalText, 'h1':Heading1, 'h2':Heading2, 'h3':Heading3, 'h4':Heading4, 'h5':Heading5, 'h6':Heading6, 'title':Title}
-	
+
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
 		xs = list(self.contents_query)
@@ -390,14 +415,14 @@ class Para (MRTAbstractText):
 class _TempBlankPara (MRTElem):
 	def __init__(self, projection_table, block):
 		super(_TempBlankPara, self).__init__(projection_table, None)
-		
+
 		self._block = block
 		self._style = 'normal'
 		self._incr = IncrementalValueMonitor()
 		para_attrs = RichTextAttributes.fromValues({'style': self._style}, None)
 		self._editorModel = _editor.editorModelParagraph([], para_attrs)
-		
-	
+
+
 	def setContents(self, contents):
 		if len(contents) == 0:
 			return
@@ -405,23 +430,23 @@ class _TempBlankPara (MRTElem):
 			return
 		p = Para.new_p(self._projection_table, contents)
 		self._block.append(p)
-	
+
 	def getContents(self):
 		self._incr.onAccess()
 		return []
-	
+
 	def setStyle(self, style):
 		self._style = style
 		self._incr.onChanged()
-	
+
 	_styleMap = {'normal':NormalText, 'h1':Heading1, 'h2':Heading2, 'h3':Heading3, 'h4':Heading4, 'h5':Heading5, 'h6':Heading6, 'title':Title}
-	
+
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
 		x = NormalText('')
 		x = _editor.editableParagraph(self, x)
 		return x
-	
+
 	def __repr__(self):
 		return '<blank_para'
 
@@ -438,7 +463,7 @@ class InlineEmbed (_Embed):
 	def __init__(self, projection_table, elem):
 		super(InlineEmbed, self).__init__(projection_table, elem)
 		self._editorModel = _editor.editorModelInlineEmbed(self)
-	
+
 	def __present__(self, fragment, inheritedState):
 		x = Pres.coerce(self.value).withContextMenuInteractor(_inlineEmbedContextMenuFactory)
 		x = _editor.editableInlineEmbed(self, x)
@@ -454,7 +479,7 @@ class ParaEmbed (_Embed):
 	def __init__(self, projection_table, elem):
 		super(ParaEmbed, self).__init__(projection_table, elem)
 		self._editorModel = _editor.editorModelParagraphEmbed(self, self)
-	
+
 	def __present__(self, fragment, inheritedState):
 		x = Pres.coerce(self.value).withContextMenuInteractor(_paraEmbedContextMenuFactory)
 		x = _editor.editableParagraphEmbed(self, x)
@@ -469,23 +494,23 @@ class ParaEmbed (_Embed):
 def _inlineEmbedContextMenuFactory(element, menu):
 	def deleteInlineEmbed(menuItem):
 		_editor.deleteInlineEmbedContainingElement(element)
-	
-	
+
+
 	deleteItem = MenuItem.menuItemWithLabel('Delete', deleteInlineEmbed)
-	
+
 	menu.add(deleteItem.alignHExpand())
-	
+
 	return True
 
 def _paraEmbedContextMenuFactory(element, menu):
 	def deleteEmbedPara(menuItem):
 		_editor.deleteParagraphContainingElement(element)
-	
-	
+
+
 	deleteItem = MenuItem.menuItemWithLabel('Delete', deleteEmbedPara)
-	
+
 	menu.add(deleteItem.alignHExpand())
-	
+
 	return True
 
 
@@ -507,8 +532,8 @@ class Block (MRTElem):
 
 	def _filterContents(self, xs):
 		return [x   for x in xs   if not isinstance(x, _TempBlankPara)]
-	
-	
+
+
 	def _on_changed(self):
 		self._editorModel.setModelContents(_editor, list(self.contents_query))
 		self._incr.onChanged()
@@ -517,7 +542,7 @@ class Block (MRTElem):
 	def setContents(self, contents):
 		self.contents_query = self._filterContents(list(contents))
 
-	
+
 	def append(self, para):
 		self.contents_query.append(para)
 
@@ -537,8 +562,8 @@ class Block (MRTElem):
 			del self.contents_query[index]
 		else:
 			raise ValueError, 'could not find para'
-	
-	
+
+
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
 		contents = self.contents_query
@@ -558,8 +583,8 @@ class Document (MRTElem):
 	def __init__(self, projection_table, elem):
 		super(Document, self).__init__(projection_table, elem)
 		self._editorModel = None
-	
-	
+
+
 	def __present__(self, fragment, inheritedState):
 		d = Pres.coerce(self.block_query).withContextMenuInteractor(_documentContextMenuFactory)
 		d = d.withNonLocalDropDest(DataFlavor.javaFileListFlavor, _dndHighlight, _onDropImage)
@@ -587,11 +612,11 @@ class _ParaImage (_EmbeddedImage):
 def _documentContextMenuFactory(element, menu):
 	region = element.getRegion()
 	rootElement = element.getRootElement()
-	
+
 	def makeParagraphStyleFn(style):
 		def setStyle(model):
 			model.setStyle(style)
-		
+
 		def _onLink(link, event):
 			caret = rootElement.getCaret()
 			if caret is not None and caret.isValid():
@@ -599,18 +624,18 @@ def _documentContextMenuFactory(element, menu):
 				if caretElement.getRegion() is region:
 					_editor.modifyParagraphAtMarker(caret.getMarker(), setStyle)
 		return _onLink
-	
+
 	def insertEmbedPara(link, event):
 		def _newEmbedPara():
 			img = _imageFileChooser(link.element, lambda f: _ParaImage(f))
 			return ParaEmbed(img)   if img is not None   else None
-		
+
 		caret = rootElement.getCaret()
 		if caret is not None and caret.isValid():
 			caretElement = caret.getElement()
 			if caretElement.getRegion() is region:
 				_editor.insertParagraphAtCaret(caret, _newEmbedPara)
-	
+
 	normalStyle = Hyperlink('Normal', makeParagraphStyleFn('normal'))
 	h1Style = Hyperlink('H1', makeParagraphStyleFn('h1'))
 	h2Style = Hyperlink('H2', makeParagraphStyleFn('h2'))
@@ -624,8 +649,8 @@ def _documentContextMenuFactory(element, menu):
 	paraEmbeds = ControlsRow([embedPara])
 	menu.add(Section(SectionHeading2('Paragraph styles'), paraStyles))
 	menu.add(Section(SectionHeading2('Paragraph embeds'), paraEmbeds))
-	
-	
+
+
 	def makeStyleFn(attrName):
 		def computeStyleValues(listOfSpanAttrs):
 			value = listOfSpanAttrs[0].getValue(attrName, 0)
@@ -633,35 +658,36 @@ def _documentContextMenuFactory(element, menu):
 			attrs = RichTextAttributes()
 			attrs.putOverride(attrName, value)
 			return attrs
-		
+
 		def onButton(button, event):
 			selection = rootElement.getSelection()
 			if isinstance(selection, TextSelection):
 				if selection.getRegion() == region:
 					_editor.applyStyleToSelection(selection, computeStyleValues)
 		return onButton
-	
+
 	def _onInsertInlineEmbed(button, event):
 		def _newInlineEmbedValue():
 			return _imageFileChooser(button.element, lambda f: _InlineImage(f))
-		
+
 		caret = rootElement.getCaret()
 		if caret is not None and caret.isValid():
 			caretElement = caret.getElement()
 			if caretElement.getRegion() is region:
 				_editor.insertInlineEmbedAtMarker(caret.getMarker(), _newInlineEmbedValue)
-	
+
 	italicStyle = Button.buttonWithLabel('I', makeStyleFn('i'))
 	boldStyle = Button.buttonWithLabel('B', makeStyleFn('b'))
 	codeStyle = Button.buttonWithLabel('code', makeStyleFn('code'))
-	styles = ControlsRow([italicStyle, boldStyle, codeStyle]).alignHLeft()
+	cmdStyle = Button.buttonWithLabel('> cmd', makeStyleFn('cmd'))
+	styles = ControlsRow([italicStyle, boldStyle, codeStyle, cmdStyle]).alignHLeft()
 	insertInlineEmbed = Button.buttonWithLabel('Embed', _onInsertInlineEmbed)
 	inlineEmbeds = ControlsRow([insertInlineEmbed]).alignHLeft()
-	
+
 	menu.add(Section(SectionHeading2('Selection styles'), styles))
 	menu.add(Section(SectionHeading2('Inline embeds'), inlineEmbeds))
-	
-	
+
+
 	return True
 
 
@@ -683,12 +709,12 @@ def _onDropImage(element, pos, data, action):
 			for f in list(data):
 				factory = _makeInlineEmbeddedImageFactory(f)
 				_editor.insertInlineEmbedAtMarker(marker, factory)
-		
+
 		def _onDropParagraph(control):
 			for f in list(data):
 				factory = _makeParaEmbeddedImageFactory(f)
 				_editor.insertParagraphAtMarker(marker, factory)
-		
+
 		menu = VPopupMenu([MenuItem.menuItemWithLabel('Inline', _onDropInline), MenuItem.menuItemWithLabel('As paragraph', _onDropParagraph)])
 		menu.popupMenuAtMousePosition(marker.getElement())
 	return True
