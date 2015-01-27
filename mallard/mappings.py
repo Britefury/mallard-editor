@@ -25,7 +25,7 @@ def init_mappings():
 
 	block_contents_mapping.map(richtext.ParaEmbed, p=richtext.Para)
 
-	text_mapping.map(richtext.XmlElemSpan)
+	text_mapping.map(richtext.XmlElemSpan, i=richtext.Style, b=richtext.Style, code=richtext.Style)
 
 	para_embed_value_mapping.map(section=section.Section, note=note.Note)
 

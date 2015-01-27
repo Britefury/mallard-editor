@@ -22,7 +22,7 @@ from BritefuryJ.LSpace.Input import DndHandler
 from BritefuryJ.LSpace.Marker import Marker
 
 from BritefuryJ.StyleSheet import StyleSheet
-from BritefuryJ.Graphics import SolidBorder
+from BritefuryJ.Graphics import SolidBorder, FilledOutlinePainter
 
 from BritefuryJ.Incremental import IncrementalValueMonitor
 
@@ -138,6 +138,88 @@ class MRTAbstractText (MRTElem):
 
 
 
+
+
+
+
+
+class StyleAttribute (object):
+	tag_name_to_attr = {}
+
+
+	def __init__(self, tag_name):
+		self.tag_name = tag_name
+
+		self.tag_name_to_attr[tag_name] = self
+
+
+	def make_style_function(self, value):
+		raise NotImplementedError
+
+	def make_xml_element(self, rich_text_attributes, child):
+		raise NotImplementedError
+
+	def store_value_from_element(self, rich_text_attributes, element):
+		raise NotImplementedError
+
+	def boolean_pres_fn(self, apply_to_pres):
+		self.__style_function = lambda value: (lambda p: apply_to_pres(p))   if value   else None
+
+
+class BooleanStyleAttribute (StyleAttribute):
+	def __init__(self, tag_name):
+		super(BooleanStyleAttribute, self).__init__(tag_name)
+		self.__apply_to_pres = None
+
+	def apply_to_pres(self, fn):
+		self.__apply_to_pres = fn
+
+	def make_style_function(self, value):
+		if value:
+			return self.__apply_to_pres
+		else:
+			return None
+
+	def make_xml_element(self, rich_text_attributes, child):
+		value = rich_text_attributes.getValue(self.tag_name, 0)
+		if value:
+			e = xmlmodel.XmlElem(self.tag_name)
+			if child is not None:
+				e.append(child)
+			return e
+		else:
+			return child
+
+
+	def store_value_from_element(self, rich_text_attributes, element):
+		rich_text_attributes.putOverride(self.tag_name, True)
+
+
+
+_italic_style = StyleSheet.instance.withValues(Primitive.fontItalic(True))
+_bold_style = StyleSheet.instance.withValues(Primitive.fontBold(True))
+_code_style = StyleSheet.instance.withValues(Primitive.fontFace(Primitive.monospaceFontName),
+		Primitive.background(FilledOutlinePainter(Color(0.9, 0.9, 0.9), Color(0.75, 0.75, 0.75))))
+
+
+
+italic_style_attr = BooleanStyleAttribute('i')
+@italic_style_attr.apply_to_pres
+def apply_italic_style(p):
+	return _italic_style.applyTo(p)
+
+bold_style_attr = BooleanStyleAttribute('b')
+@bold_style_attr.apply_to_pres
+def apply_bold_style(p):
+	return _bold_style.applyTo(p)
+
+code_style_attr = BooleanStyleAttribute('code')
+@code_style_attr.apply_to_pres
+def apply_code_style(p):
+	return _code_style.applyTo(p)
+
+
+
 class Style (MRTAbstractText):
 	contents_query = elem_query.children().map(_remove_whitespace, _identity).project_to_objects(mappings.text_mapping)
 
@@ -145,6 +227,10 @@ class Style (MRTAbstractText):
 		super(Style, self).__init__(projection_table, elem, contents)
 		if span_attrs is None:
 			span_attrs = RichTextAttributes()
+			sa = StyleAttribute.tag_name_to_attr.get(elem.tag)
+			if sa is not None:
+				sa.store_value_from_element(span_attrs, elem)
+
 		self._editorModel = _editor.editorModelSpan([], span_attrs)
 		self.setStyleAttrs(span_attrs)
 
@@ -153,7 +239,7 @@ class Style (MRTAbstractText):
 
 	def setStyleAttrs(self, styleAttrs):
 		self._styleAttrs = styleAttrs
-		self._styleSheet = self._mapStyles(styleAttrs)
+		self._style_functions = self._mapStyles(styleAttrs)
 		self._editorModel.setSpanAttrs(styleAttrs)
 		self._incr.onChanged()
 
@@ -163,28 +249,36 @@ class Style (MRTAbstractText):
 
 	def __present__(self, fragment, inheritedState):
 		self._incr.onAccess()
-		x = self._styleSheet.applyTo(RichSpan(list(self.contents_query)))
-		x = _editor.editableSpan(self, x)
-		return x
+		p = RichSpan(list(self.contents_query))
+		for f in self._style_functions:
+			p = f(p)
+		p = _editor.editableSpan(self, p)
+		return p
 
 
-	_styleMap = {}
-	_styleMap['italic'] = lambda x: (Primitive.fontItalic, bool(x))
-	_styleMap['bold'] = lambda x: (Primitive.fontBold, bool(x))
 
 	def _mapStyles(self, spanAttrs):
-		styleSheet = StyleSheet.instance
+		style_functions = []
 		for k in spanAttrs.keySet():
-			f = self._styleMap.get(k)
-			if f is not None:
-				(attrib, value) = f(spanAttrs.getValue(k, 0))
-				styleSheet = styleSheet.withAttr(attrib, value)
-		return styleSheet
+			attr = StyleAttribute.tag_name_to_attr.get(k)
+			if attr is not None:
+				sf = attr.make_style_function(spanAttrs.getValue(k, 0))
+				if sf is not None:
+					style_functions.append(sf)
+		return style_functions
 
 	@staticmethod
 	def new_span(mapping, contents, style_attrs=None):
-		raise NotImplementedError
-		return Style(mapping, xmlmodel.XmlElem('????'), contents, style_attrs)
+		if style_attrs is not None:
+			elem = None
+			for k in style_attrs.keySet():
+				attr = StyleAttribute.tag_name_to_attr.get(k)
+				if attr is not None:
+					x = attr.make_xml_element(style_attrs, elem)
+					elem = x
+			return Style(mapping, elem, contents, style_attrs)
+		else:
+			raise NotImplementedError
 
 
 
@@ -557,9 +651,10 @@ def _documentContextMenuFactory(element, menu):
 			if caretElement.getRegion() is region:
 				_editor.insertInlineEmbedAtMarker(caret.getMarker(), _newInlineEmbedValue)
 	
-	italicStyle = Button.buttonWithLabel('I', makeStyleFn('italic'))
-	boldStyle = Button.buttonWithLabel('B', makeStyleFn('bold'))
-	styles = ControlsRow([italicStyle, boldStyle]).alignHLeft()
+	italicStyle = Button.buttonWithLabel('I', makeStyleFn('i'))
+	boldStyle = Button.buttonWithLabel('B', makeStyleFn('b'))
+	codeStyle = Button.buttonWithLabel('code', makeStyleFn('code'))
+	styles = ControlsRow([italicStyle, boldStyle, codeStyle]).alignHLeft()
 	insertInlineEmbed = Button.buttonWithLabel('Embed', _onInsertInlineEmbed)
 	inlineEmbeds = ControlsRow([insertInlineEmbed]).alignHLeft()
 	
