@@ -29,7 +29,7 @@ def text_entry_query_text(fn):
 	def control():
 		try:
 			elem = fn()
-		except xmlmodel.XmlElemenNoChildrenMatchesSelector:
+		except xmlmodel.XmlElemNoChildMatchesSelector:
 			return error.error_message('Query did not match any elements')
 		except xmlmodel.XmlElemMultipleChildrenMatchSelectorError:
 			return error.error_message('Query matched multiple elements')

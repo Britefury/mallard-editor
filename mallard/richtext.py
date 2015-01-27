@@ -533,11 +533,11 @@ def _documentContextMenuFactory(element, menu):
 	
 	
 	def makeStyleFn(attrName):
-		def computeStyleValues(styleAttrDicts):
-			value = dict(styleAttrDicts[0]).get(attrName, False)
+		def computeStyleValues(listOfSpanAttrs):
+			value = listOfSpanAttrs[0].getValue(attrName, 0)
 			value = not value
-			attrs = {}
-			attrs[attrName] = value
+			attrs = RichTextAttributes()
+			attrs.putOverride(attrName, value)
 			return attrs
 		
 		def onButton(button, event):

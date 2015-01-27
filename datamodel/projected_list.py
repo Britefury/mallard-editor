@@ -6,15 +6,45 @@ from Britefury.Util.LiveList import LiveList
 
 
 class _ProjectedList (object):
+	"""
+	Projected list abstract interface that defines the `filter` and `map` methods
+	"""
 	def filter(self, fn):
+		"""
+		Create a filter projection of this list.
+
+		:param fn: the filter function `fn(x) -> bool` that determines if an element is present
+		 in the filtered list
+
+		:return: a FilterProjectedList, that contains the elements in `self` for which `fn` returns True.
+		Modifications to `self` are reflected in the filtered projection. Modifications to the filtered
+		projection are applied to the underlying list (`self`)
+		"""
 		return FilterProjectedList(self, [fn])
 
 	def map(self, fn, inv_fn):
+		"""
+		Create a map projection of this list. It contains the results of applying the function `fn`
+		to each element in `self`.
+
+		:param fn: the map function 'fn(x) -> y' that maps the element to its result
+		:param inv_fn: the inverse map function 'inv_fn(y) -> x' that is the inverse of `fn`.
+
+		:return: a MapProjectedList, that contains the result of applying `fn` to each element in `self`.
+		The mapped projection is updated when `self` is modified. Modifying the mapped projection
+		results in the changes being applied to the underlying list (`self`); the inverse map function
+		`inv_fn` is used to convert these modifications.
+		"""
 		return MapProjectedList(self, [fn], [inv_fn])
 
 
 
 class LiveProjectedList (LiveList, _ProjectedList):
+	"""
+	A live projected list
+
+	A list that reports changes via the incremental computation system
+	"""
 	def __init__(self, xs=None):
 		LiveList.__init__(self, xs)
 		_ProjectedList.__init__(self)

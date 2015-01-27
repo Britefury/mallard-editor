@@ -145,6 +145,9 @@ class ElemAttrs (object):
 
 
 def _is_tagged(x, tag):
+	"""
+	Returns True if `x` is an `XmlElem` and its tag is `tag`
+	"""
 	return isinstance(x, XmlElem)  and  x.tag == tag
 
 
@@ -154,7 +157,7 @@ class XmlElemHasNonTextContentError (Exception):
 class XmlElemMultipleChildrenMatchSelectorError (Exception):
 	pass
 
-class XmlElemenNoChildrenMatchesSelector (Exception):
+class XmlElemNoChildMatchesSelector (Exception):
 	pass
 
 
@@ -167,7 +170,7 @@ def _test(elem, selector, text, attrs):
 	:param selector: either 1) a tag name, 2) a list or tuple of tag names, or 3) a callable that is called with the element to test passed as a parameter
 	:param text: if True, the test will only pass if elem is text
 	:param attrs: a dictionary mapping attribute names to values; an element will pass the test if its attributes are a superset of those in attrs
-	:return: True of the element or text passes the test, False otherwise
+	:return: True if the element or text passes the test, False otherwise
 	"""
 	if text:
 		return isinstance(elem, basestring)
@@ -207,7 +210,16 @@ def _test(elem, selector, text, attrs):
 
 
 class XmlElem (object):
+	"""
+	A live XML element
+	"""
 	def __init__(self, tag, **attrs):
+		"""
+		Constructor
+
+		:param tag: the tag of the element
+		:param attrs: element attributes in kwarg (dictionary) form
+		"""
 		self.__tag = tag
 		self.__attrs = ElemAttrs(attrs)
 		self.__contents = projected_list.LiveProjectedList()
@@ -279,6 +291,14 @@ class XmlElem (object):
 
 
 	def children(self, __selector=None, __text=False, **attrs):
+		"""
+		Get the children, optionally filtered
+
+		:param __selector: either 1) a tag name, 2) a list or tuple of tag names, or 3) a callable that is called with the element to test passed as a parameter
+		:param __text: if True, the test will only pass if elem is text
+		:param attrs: a dictionary mapping attribute names to values; an element will pass the test if its attributes are a superset of those in attrs
+		:return: a list of children
+		"""
 		children = []
 		for x in self.__contents:
 			if _test(x, __selector, __text, attrs):
@@ -286,10 +306,29 @@ class XmlElem (object):
 		return children
 
 	def children_projected(self, __selector=None, __text=False, **attrs):
+		"""
+		Get a live projected list of children, optionally filtered
+
+		:param __selector: either 1) a tag name, 2) a list or tuple of tag names, or 3) a callable that is called with the element to test passed as a parameter
+		:param __text: if True, the test will only pass if elem is text
+		:param attrs: a dictionary mapping attribute names to values; an element will pass the test if its attributes are a superset of those in attrs
+		:return: a live projected list of children
+		"""
 		return self.__contents.filter(lambda x: _test(x, __selector, __text, attrs))
 
 
 	def child(self, __selector=None, __text=False, **attrs):
+		"""
+		Get a single child that matches the filter conditions.
+
+		:param __selector: either 1) a tag name, 2) a list or tuple of tag names, or 3) a callable that is called with the element to test passed as a parameter
+		:param __text: if True, the test will only pass if elem is text
+		:param attrs: a dictionary mapping attribute names to values; an element will pass the test if its attributes are a superset of those in attrs
+		:return: a list of children
+
+		raises XmlElemMultipleChildrenMatchSelectorError if multiple children match the filter conditions
+		raises XmlElemNoChildMatchesSelector if no children match the filter conditions
+		"""
 		child = None
 		for x in self.__contents:
 			if _test(x, __selector, __text, attrs):
@@ -297,7 +336,7 @@ class XmlElem (object):
 					raise XmlElemMultipleChildrenMatchSelectorError
 				child = x
 		if child is None:
-			raise XmlElemenNoChildrenMatchesSelector
+			raise XmlElemNoChildMatchesSelector
 		return child
 
 
